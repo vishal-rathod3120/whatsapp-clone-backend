@@ -5,6 +5,7 @@ import {
   OnGatewayDisconnect,
   SubscribeMessage,
 } from '@nestjs/websockets';
+import { PrismaService } from '../../prisma/prisma.service';
 import { Server, Socket } from 'socket.io';
 import { SocketSessionService } from './socket-session.service';
 import { ChatsService } from '../chats/chats.service';
@@ -13,6 +14,7 @@ import { PresenceRepository } from '../../redis/presence.repository';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuthTokenService } from '../auth/auth-token.service';
 import { SendMessageDto, DeliveredDto, SeenDto } from '../messages/dto/message.dto';
+import { forwardRef, Inject } from '@nestjs/common';
 
 @WebSocketGateway({
   cors: { origin: '*' },
@@ -25,6 +27,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private socketSessionService: SocketSessionService,
     private chatsService: ChatsService,
+    @Inject(forwardRef(() => MessagesService))
     private messagesService: MessagesService,
     private presenceRepository: PresenceRepository,
     private notificationsService: NotificationsService,

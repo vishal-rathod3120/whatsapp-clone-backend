@@ -1,5 +1,6 @@
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateDirectChatDto } from './dto/chat.dto';
+import { ChatMemberRole } from '../../common/enums';
 export declare class ChatsService {
     private prisma;
     constructor(prisma: PrismaService);
@@ -7,23 +8,76 @@ export declare class ChatsService {
         members: {
             id: string;
             userId: string;
+            chatId: string;
             role: import(".prisma/client").$Enums.ChatMemberRole;
             joinedAt: Date;
             leftAt: Date | null;
             isMuted: boolean;
             lastReadMessageId: string | null;
-            chatId: string;
         }[];
     } & {
         id: string;
-        type: import(".prisma/client").$Enums.ChatType;
+        createdAt: Date;
         title: string | null;
+        type: import(".prisma/client").$Enums.ChatType;
         avatarUrl: string | null;
+        updatedAt: Date;
         createdById: string;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
+    }>;
+    createGroupChat(userId: string, dto: {
+        title: string;
+        memberUserIds: string[];
+        avatarUrl?: string;
+    }): Promise<{
+        members: ({
+            user: {
+                id: string;
+                displayName: string;
+                avatarUrl: string | null;
+            };
+        } & {
+            id: string;
+            userId: string;
+            chatId: string;
+            role: import(".prisma/client").$Enums.ChatMemberRole;
+            joinedAt: Date;
+            leftAt: Date | null;
+            isMuted: boolean;
+            lastReadMessageId: string | null;
+        })[];
+    } & {
+        id: string;
         createdAt: Date;
+        title: string | null;
+        type: import(".prisma/client").$Enums.ChatType;
+        avatarUrl: string | null;
         updatedAt: Date;
+        createdById: string;
+        lastMessageId: string | null;
+        lastMessageAt: Date | null;
+    }>;
+    addGroupMembers(chatId: string, requesterId: string, userIds: string[]): Promise<{
+        success: boolean;
+        added: number;
+    }>;
+    removeGroupMember(chatId: string, requesterId: string, targetUserId: string): Promise<{
+        success: boolean;
+    }>;
+    updateMemberRole(chatId: string, requesterId: string, targetUserId: string, newRole: ChatMemberRole): Promise<{
+        success: boolean;
+    }>;
+    updateGroupInfo(chatId: string, requesterId: string, title?: string, avatarUrl?: string): Promise<{
+        id: string;
+        createdAt: Date;
+        title: string | null;
+        type: import(".prisma/client").$Enums.ChatType;
+        avatarUrl: string | null;
+        updatedAt: Date;
+        createdById: string;
+        lastMessageId: string | null;
+        lastMessageAt: Date | null;
     }>;
     getChatList(userId: string, limit?: number, cursor?: string): Promise<{
         items: {
@@ -33,8 +87,8 @@ export declare class ChatsService {
             avatarUrl: string | null | undefined;
             lastMessage: {
                 id: string;
-                type: import(".prisma/client").$Enums.MessageType;
                 createdAt: Date;
+                type: import(".prisma/client").$Enums.MessageType;
                 senderId: string;
                 textContent: string | null;
                 status: import(".prisma/client").$Enums.MessageStatus;

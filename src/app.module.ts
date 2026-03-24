@@ -14,13 +14,13 @@ import { JobsModule } from './jobs/jobs.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
-import { appConfig, databaseConfig, jwtConfig, redisConfig } from './config';
+import { appConfig, databaseConfig, jwtConfig, redisConfig, storageConfig } from './config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, databaseConfig, jwtConfig, redisConfig],
+      load: [appConfig, databaseConfig, jwtConfig, redisConfig, storageConfig],
     }),
     ThrottlerModule.forRoot([
       {

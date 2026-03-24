@@ -1,5 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import { FcmProvider } from './providers/fcm.provider';
+import { ApnsProvider } from './providers/apns.provider';
 export interface PushNotificationPayload {
     title: string;
     body: string;
@@ -9,7 +11,10 @@ export interface PushNotificationPayload {
 export declare class NotificationsService {
     private prisma;
     private configService;
-    constructor(prisma: PrismaService, configService: ConfigService);
+    private fcmProvider;
+    private apnsProvider;
+    private readonly logger;
+    constructor(prisma: PrismaService, configService: ConfigService, fcmProvider: FcmProvider, apnsProvider: ApnsProvider);
     sendPushNotification(userId: string, payload: PushNotificationPayload): Promise<void>;
     sendSilentPushNotification(userId: string, data: Record<string, string>): Promise<void>;
     private sendSilentToDevice;

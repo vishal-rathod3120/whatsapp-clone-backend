@@ -32,7 +32,7 @@ exports.AppModule = AppModule = __decorate([
         imports: [
             config_1.ConfigModule.forRoot({
                 isGlobal: true,
-                load: [config_2.appConfig, config_2.databaseConfig, config_2.jwtConfig, config_2.redisConfig],
+                load: [config_2.appConfig, config_2.databaseConfig, config_2.jwtConfig, config_2.redisConfig, config_2.storageConfig],
             }),
             throttler_1.ThrottlerModule.forRoot([
                 {

@@ -1,12 +1,17 @@
-import { Controller, Post, Get, UseInterceptors, UploadedFile, Body, Param, Query } from '@nestjs/common';
+import { Controller, Post, Get, UseInterceptors, UploadedFile, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiOperation, ApiConsumes } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiConsumes, ApiBearerAuth } from '@nestjs/swagger';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { MediaService } from './media.service';
 import { v4 as uuidv4 } from 'uuid';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { JwtPayload } from '../auth/types/jwt-payload.type';
 
 @ApiTags('Media')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('media')
 export class MediaController {
   constructor(private mediaService: MediaService) {}
@@ -31,13 +36,11 @@ export class MediaController {
   async uploadFile(
     @UploadedFile() file: Express.Multer.File,
     @Body('type') type: string,
+    @CurrentUser() user: JwtPayload
   ) {
-    // User ID should come from auth guard
-    const uploaderId = 'temp-user-id';
-    
     const storageKey = file.filename;
     const attachment = await this.mediaService.createAttachment(
-      uploaderId,
+      user.sub,
       file,
       storageKey,
     );

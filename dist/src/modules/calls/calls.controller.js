@@ -18,16 +18,17 @@ const swagger_1 = require("@nestjs/swagger");
 const calls_service_1 = require("./calls.service");
 const turn_service_1 = require("../../integrations/turn/turn.service");
 const jwt_auth_guard_1 = require("../../common/guards/jwt-auth.guard");
+const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
 let CallsController = class CallsController {
     constructor(callsService, turnService) {
         this.callsService = callsService;
         this.turnService = turnService;
     }
-    async getCalls(limit, cursor) {
-        return { message: 'Get calls' };
+    async getCalls(limit, cursor, user) {
+        return this.callsService.getCallsByUser(user.sub, limit ? Number(limit) : 20, cursor);
     }
-    async getCallById(callId) {
-        return { message: 'Get call details' };
+    async getCallById(callId, user) {
+        return this.callsService.getCallById(callId, user.sub);
     }
     async getTurnCredentials() {
         const credentials = this.turnService.generateTurnCredentials();
@@ -45,16 +46,18 @@ __decorate([
     (0, swagger_1.ApiOperation)({ summary: 'Get call history' }),
     __param(0, (0, common_1.Query)('limit')),
     __param(1, (0, common_1.Query)('cursor')),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, String]),
+    __metadata("design:paramtypes", [Number, String, Object]),
     __metadata("design:returntype", Promise)
 ], CallsController.prototype, "getCalls", null);
 __decorate([
     (0, common_1.Get)(':callId'),
     (0, swagger_1.ApiOperation)({ summary: 'Get call details' }),
     __param(0, (0, common_1.Param)('callId')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], CallsController.prototype, "getCallById", null);
 __decorate([
@@ -66,6 +69,7 @@ __decorate([
 ], CallsController.prototype, "getTurnCredentials", null);
 exports.CallsController = CallsController = __decorate([
     (0, swagger_1.ApiTags)('Calls'),
+    (0, swagger_1.ApiBearerAuth)(),
     (0, common_1.Controller)('calls'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __metadata("design:paramtypes", [calls_service_1.CallsService,

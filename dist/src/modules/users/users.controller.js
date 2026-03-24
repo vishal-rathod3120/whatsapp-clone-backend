@@ -17,40 +17,44 @@ const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 const users_service_1 = require("./users.service");
 const update_profile_dto_1 = require("./dto/update-profile.dto");
+const jwt_auth_guard_1 = require("../../common/guards/jwt-auth.guard");
+const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
 let UsersController = class UsersController {
     constructor(usersService) {
         this.usersService = usersService;
     }
-    async getMe() {
-        return { message: 'Get current user' };
+    async getMe(user) {
+        return this.usersService.findById(user.sub);
     }
-    async updateMe(dto) {
-        return { message: 'Update profile' };
+    async updateMe(dto, user) {
+        return this.usersService.updateProfile(user.sub, dto);
     }
     async getUserById(id) {
         return this.usersService.findById(id);
     }
-    async blockUser(id) {
-        return { message: 'Block user' };
+    async blockUser(id, user) {
+        return this.usersService.blockUser(user.sub, id);
     }
-    async unblockUser(id) {
-        return { message: 'Unblock user' };
+    async unblockUser(id, user) {
+        return this.usersService.unblockUser(user.sub, id);
     }
 };
 exports.UsersController = UsersController;
 __decorate([
     (0, common_1.Get)('me'),
     (0, swagger_1.ApiOperation)({ summary: 'Get current user profile' }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "getMe", null);
 __decorate([
     (0, common_1.Patch)('me'),
     (0, swagger_1.ApiOperation)({ summary: 'Update current user profile' }),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [update_profile_dto_1.UpdateProfileDto]),
+    __metadata("design:paramtypes", [update_profile_dto_1.UpdateProfileDto, Object]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "updateMe", null);
 __decorate([
@@ -65,20 +69,24 @@ __decorate([
     (0, common_1.Post)('block/:id'),
     (0, swagger_1.ApiOperation)({ summary: 'Block a user' }),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "blockUser", null);
 __decorate([
     (0, common_1.Delete)('block/:id'),
     (0, swagger_1.ApiOperation)({ summary: 'Unblock a user' }),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "unblockUser", null);
 exports.UsersController = UsersController = __decorate([
     (0, swagger_1.ApiTags)('Users'),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Controller)('users'),
     __metadata("design:paramtypes", [users_service_1.UsersService])
 ], UsersController);

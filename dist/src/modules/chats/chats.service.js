@@ -58,6 +58,120 @@ let ChatsService = class ChatsService {
         });
         return chat;
     }
+    async createGroupChat(userId, dto) {
+        const uniqueMembers = Array.from(new Set(dto.memberUserIds.filter(id => id !== userId)));
+        const membersData = [
+            { userId, role: enums_1.ChatMemberRole.OWNER },
+            ...uniqueMembers.map(id => ({ userId: id, role: enums_1.ChatMemberRole.MEMBER }))
+        ];
+        const chat = await this.prisma.chat.create({
+            data: {
+                type: enums_1.ChatType.GROUP,
+                title: dto.title,
+                avatarUrl: dto.avatarUrl,
+                createdById: userId,
+                members: {
+                    create: membersData,
+                },
+            },
+            include: {
+                members: {
+                    include: {
+                        user: { select: { id: true, displayName: true, avatarUrl: true } }
+                    }
+                }
+            }
+        });
+        return chat;
+    }
+    async addGroupMembers(chatId, requesterId, userIds) {
+        const chat = await this.prisma.chat.findUnique({
+            where: { id: chatId },
+            include: { members: { where: { leftAt: null } } }
+        });
+        if (!chat || chat.type !== enums_1.ChatType.GROUP) {
+            throw new common_1.NotFoundException('Group chat not found');
+        }
+        const requester = chat.members.find(m => m.userId === requesterId);
+        if (!requester || (requester.role !== enums_1.ChatMemberRole.ADMIN && requester.role !== enums_1.ChatMemberRole.OWNER)) {
+            throw new common_1.ForbiddenException('Only admins can add members');
+        }
+        const currentMemberIds = new Set(chat.members.map(m => m.userId));
+        const newMembers = userIds.filter(id => !currentMemberIds.has(id));
+        if (newMembers.length > 0) {
+            await this.prisma.chatMember.createMany({
+                data: newMembers.map(id => ({
+                    chatId,
+                    userId: id,
+                    role: enums_1.ChatMemberRole.MEMBER
+                }))
+            });
+        }
+        return { success: true, added: newMembers.length };
+    }
+    async removeGroupMember(chatId, requesterId, targetUserId) {
+        const chat = await this.prisma.chat.findUnique({
+            where: { id: chatId },
+            include: { members: { where: { leftAt: null } } }
+        });
+        if (!chat || chat.type !== enums_1.ChatType.GROUP)
+            throw new common_1.NotFoundException('Group chat not found');
+        const requester = chat.members.find(m => m.userId === requesterId);
+        if (!requester)
+            throw new common_1.ForbiddenException('Not a member');
+        const targetMember = chat.members.find(m => m.userId === targetUserId);
+        if (!targetMember)
+            throw new common_1.NotFoundException('User is not a member');
+        if (requesterId !== targetUserId) {
+            if (requester.role === enums_1.ChatMemberRole.MEMBER)
+                throw new common_1.ForbiddenException('Only admins can remove members');
+            if (requester.role === enums_1.ChatMemberRole.ADMIN && targetMember.role === enums_1.ChatMemberRole.OWNER) {
+                throw new common_1.ForbiddenException('Admins cannot remove the owner');
+            }
+        }
+        await this.prisma.chatMember.update({
+            where: { chatId_userId: { chatId, userId: targetUserId } },
+            data: { leftAt: new Date() }
+        });
+        return { success: true };
+    }
+    async updateMemberRole(chatId, requesterId, targetUserId, newRole) {
+        const chat = await this.prisma.chat.findUnique({
+            where: { id: chatId },
+            include: { members: { where: { leftAt: null } } }
+        });
+        if (!chat || chat.type !== enums_1.ChatType.GROUP)
+            throw new common_1.NotFoundException('Group chat not found');
+        const requester = chat.members.find(m => m.userId === requesterId);
+        if (!requester || requester.role !== enums_1.ChatMemberRole.OWNER) {
+            throw new common_1.ForbiddenException('Only the owner can manage roles');
+        }
+        const targetMember = chat.members.find(m => m.userId === targetUserId);
+        if (!targetMember)
+            throw new common_1.NotFoundException('User not found in group');
+        await this.prisma.chatMember.update({
+            where: { chatId_userId: { chatId, userId: targetUserId } },
+            data: { role: newRole }
+        });
+        return { success: true };
+    }
+    async updateGroupInfo(chatId, requesterId, title, avatarUrl) {
+        const chat = await this.prisma.chat.findUnique({
+            where: { id: chatId },
+            include: { members: { where: { leftAt: null } } }
+        });
+        if (!chat || chat.type !== enums_1.ChatType.GROUP)
+            throw new common_1.NotFoundException('Group chat not found');
+        const requester = chat.members.find(m => m.userId === requesterId);
+        if (!requester || (requester.role !== enums_1.ChatMemberRole.ADMIN && requester.role !== enums_1.ChatMemberRole.OWNER)) {
+            throw new common_1.ForbiddenException('Only admins can update group info');
+        }
+        const updated = await this.prisma.chat.update({
+            where: { id: chatId },
+            data: { title, avatarUrl }
+        });
+        return updated;
+    }
     async getChatList(userId, limit = 20, cursor) {
         const chats = await this.prisma.chat.findMany({
             where: {

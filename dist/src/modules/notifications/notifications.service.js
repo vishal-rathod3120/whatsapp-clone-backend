@@ -8,15 +8,33 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var NotificationsService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NotificationsService = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const prisma_service_1 = require("../../prisma/prisma.service");
-let NotificationsService = class NotificationsService {
-    constructor(prisma, configService) {
+const fcm_provider_1 = require("./providers/fcm.provider");
+const apns_provider_1 = require("./providers/apns.provider");
+const admin = require("firebase-admin");
+let NotificationsService = NotificationsService_1 = class NotificationsService {
+    constructor(prisma, configService, fcmProvider, apnsProvider) {
         this.prisma = prisma;
         this.configService = configService;
+        this.fcmProvider = fcmProvider;
+        this.apnsProvider = apnsProvider;
+        this.logger = new common_1.Logger(NotificationsService_1.name);
+        if (!admin.apps.length) {
+            try {
+                admin.initializeApp({
+                    credential: admin.credential.applicationDefault(),
+                });
+                this.logger.log('Firebase Admin SDK initialized');
+            }
+            catch (error) {
+                this.logger.warn(`Failed to initialize Firebase Admin: ${error.message}. Push notifications will be mocked.`);
+            }
+        }
     }
     async sendPushNotification(userId, payload) {
         const devices = await this.prisma.device.findMany({
@@ -46,36 +64,39 @@ let NotificationsService = class NotificationsService {
         }
     }
     async sendSilentToDevice(token, data, deviceType) {
-        try {
-            if (deviceType === 'ANDROID') {
-                console.log(`Sending silent FCM notification to ${token}:`, data);
-            }
-            else if (deviceType === 'IOS') {
-                console.log(`Sending silent APNs notification to ${token}:`, data);
-            }
+        if (!admin.apps.length) {
+            this.logger.debug(`[Mock SILENT Push] to ${token}`);
+            return;
         }
-        catch (error) {
-            console.error('Failed to send silent push notification:', error);
+        if (deviceType === 'ANDROID') {
+            await this.fcmProvider.sendPushNotification(token, '', '', data);
+        }
+        else if (deviceType === 'IOS') {
+            await this.apnsProvider.sendPushNotification(token, '', '', data);
         }
     }
     async sendToDevice(token, payload, deviceType) {
-        try {
-            if (deviceType === 'ANDROID' || deviceType === 'IOS') {
-                console.log(`Sending FCM notification to ${token}:`, payload);
-            }
-            else if (deviceType === 'WEB') {
-                console.log(`Sending Web Push notification to ${token}:`, payload);
-            }
+        if (!admin.apps.length) {
+            this.logger.debug(`[Mock Push] to ${token}: ${payload.title}`);
+            return;
         }
-        catch (error) {
-            console.error('Failed to send push notification:', error);
+        if (deviceType === 'ANDROID') {
+            await this.fcmProvider.sendPushNotification(token, payload.title, payload.body, payload.data);
+        }
+        else if (deviceType === 'IOS') {
+            await this.apnsProvider.sendPushNotification(token, payload.title, payload.body, payload.data);
+        }
+        else if (deviceType === 'WEB') {
+            this.logger.debug(`Sending Web Push to ${token}`);
         }
     }
 };
 exports.NotificationsService = NotificationsService;
-exports.NotificationsService = NotificationsService = __decorate([
+exports.NotificationsService = NotificationsService = NotificationsService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        config_1.ConfigService])
+        config_1.ConfigService,
+        fcm_provider_1.FcmProvider,
+        apns_provider_1.ApnsProvider])
 ], NotificationsService);
 //# sourceMappingURL=notifications.service.js.map

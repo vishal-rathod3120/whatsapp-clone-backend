@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
@@ -22,7 +22,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new NotFoundException('User not found');
     }
 
     return user;
@@ -63,7 +63,7 @@ export class UsersService {
     });
 
     if (existingBlock) {
-      throw new Error('User is already blocked');
+      throw new ConflictException('User is already blocked');
     }
 
     await this.prisma.userBlock.create({

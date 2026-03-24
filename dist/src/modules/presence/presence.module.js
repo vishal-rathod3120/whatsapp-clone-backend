@@ -8,6 +8,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PresenceModule = void 0;
 const common_1 = require("@nestjs/common");
+const jwt_1 = require("@nestjs/jwt");
 const presence_gateway_1 = require("./presence.gateway");
 const presence_service_1 = require("./presence.service");
 const redis_module_1 = require("../../redis/redis.module");
@@ -17,7 +18,7 @@ let PresenceModule = class PresenceModule {
 exports.PresenceModule = PresenceModule;
 exports.PresenceModule = PresenceModule = __decorate([
     (0, common_1.Module)({
-        imports: [redis_module_1.RedisModule, gateway_module_1.GatewayModule],
+        imports: [redis_module_1.RedisModule, gateway_module_1.GatewayModule, jwt_1.JwtModule],
         providers: [presence_gateway_1.PresenceGateway, presence_service_1.PresenceService],
         exports: [presence_service_1.PresenceService],
     })

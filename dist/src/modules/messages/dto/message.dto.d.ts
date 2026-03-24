@@ -6,6 +6,9 @@ export declare class SendMessageDto {
     attachmentId?: string;
     replyToMessageId?: string;
 }
+export declare class EditMessageDto {
+    textContent: string;
+}
 export declare class GetMessagesQueryDto {
     limit?: number;
     cursor?: string;

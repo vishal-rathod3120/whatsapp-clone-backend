@@ -20,14 +20,15 @@ const multer_1 = require("multer");
 const path_1 = require("path");
 const media_service_1 = require("./media.service");
 const uuid_1 = require("uuid");
+const jwt_auth_guard_1 = require("../../common/guards/jwt-auth.guard");
+const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
 let MediaController = class MediaController {
     constructor(mediaService) {
         this.mediaService = mediaService;
     }
-    async uploadFile(file, type) {
-        const uploaderId = 'temp-user-id';
+    async uploadFile(file, type, user) {
         const storageKey = file.filename;
-        const attachment = await this.mediaService.createAttachment(uploaderId, file, storageKey);
+        const attachment = await this.mediaService.createAttachment(user.sub, file, storageKey);
         const signedUrl = await this.mediaService.getSignedUrl(storageKey, 900);
         return {
             attachmentId: attachment.id,
@@ -68,8 +69,9 @@ __decorate([
     })),
     __param(0, (0, common_1.UploadedFile)()),
     __param(1, (0, common_1.Body)('type')),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:paramtypes", [Object, String, Object]),
     __metadata("design:returntype", Promise)
 ], MediaController.prototype, "uploadFile", null);
 __decorate([
@@ -83,6 +85,8 @@ __decorate([
 ], MediaController.prototype, "getDownloadUrl", null);
 exports.MediaController = MediaController = __decorate([
     (0, swagger_1.ApiTags)('Media'),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Controller)('media'),
     __metadata("design:paramtypes", [media_service_1.MediaService])
 ], MediaController);

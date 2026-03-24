@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import * as crypto from 'crypto';
 
 export interface TurnServer {
   urls: string[];
@@ -30,8 +31,16 @@ export class TurnService {
   }
 
   generateTurnCredentials(): { username: string; credential: string } {
-    const username = Math.random().toString(36).substring(2, 15);
-    const credential = Math.random().toString(36).substring(2, 15);
+    const secret = process.env.TURN_SECRET;
+    if (!secret) return { username: 'mock', credential: 'mock' };
+
+    const unixTimeStamp = Math.floor(Date.now() / 1000) + 24 * 3600; // 24 hours expiry
+    const username = `${unixTimeStamp}:app_user`;
+
+    const hmac = crypto.createHmac('sha1', secret);
+    hmac.update(username);
+    const credential = hmac.digest('base64');
+
     return { username, credential };
   }
 }

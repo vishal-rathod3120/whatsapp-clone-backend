@@ -31,7 +31,7 @@ let UsersService = class UsersService {
             },
         });
         if (!user) {
-            throw new Error('User not found');
+            throw new common_1.NotFoundException('User not found');
         }
         return user;
     }
@@ -66,7 +66,7 @@ let UsersService = class UsersService {
             },
         });
         if (existingBlock) {
-            throw new Error('User is already blocked');
+            throw new common_1.ConflictException('User is already blocked');
         }
         await this.prisma.userBlock.create({
             data: {

@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SeenDto = exports.DeliveredDto = exports.GetMessagesQueryDto = exports.SendMessageDto = void 0;
+exports.SeenDto = exports.DeliveredDto = exports.GetMessagesQueryDto = exports.EditMessageDto = exports.SendMessageDto = void 0;
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 const enums_1 = require("../../../common/enums");
@@ -39,6 +39,13 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], SendMessageDto.prototype, "replyToMessageId", void 0);
+class EditMessageDto {
+}
+exports.EditMessageDto = EditMessageDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], EditMessageDto.prototype, "textContent", void 0);
 class GetMessagesQueryDto {
     constructor() {
         this.limit = 30;

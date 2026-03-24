@@ -6,14 +6,17 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import { ServerOptions } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { RedisService } from '../../redis/redis.service';
-
+import { ChatsModule } from '../chats/chats.module';
+import { MessagesModule } from '../messages/messages.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { AuthModule } from '../auth/auth.module';
+import { RedisModule } from '../../redis/redis.module';
 
 @Global()
 @Module({
-  imports: [AuthModule],
+  imports: [ChatsModule, MessagesModule, NotificationsModule, AuthModule, RedisModule],
   providers: [ChatGateway, CallGateway, SocketSessionService],
-  exports: [SocketSessionService],
+  exports: [SocketSessionService, ChatGateway],
 })
 export class GatewayModule {
   private readonly redisIoAdapter: RedisIoAdapter;

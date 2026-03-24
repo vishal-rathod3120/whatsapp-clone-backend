@@ -22,6 +22,11 @@ export class SendMessageDto {
   replyToMessageId?: string;
 }
 
+export class EditMessageDto {
+  @IsString()
+  textContent: string;
+}
+
 export class GetMessagesQueryDto {
   @IsInt()
   @Min(1)

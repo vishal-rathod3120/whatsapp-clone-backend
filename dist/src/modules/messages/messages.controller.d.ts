@@ -1,15 +1,104 @@
 import { MessagesService } from './messages.service';
-import { GetMessagesQueryDto, SendMessageDto } from './dto/message.dto';
+import { GetMessagesQueryDto, SendMessageDto, EditMessageDto } from './dto/message.dto';
+import { JwtPayload } from '../auth/types/jwt-payload.type';
 export declare class MessagesController {
     private messagesService;
     constructor(messagesService: MessagesService);
-    getMessages(chatId: string, query: GetMessagesQueryDto): Promise<{
-        message: string;
+    getMessages(chatId: string, query: GetMessagesQueryDto, user: JwtPayload): Promise<{
+        items: ({
+            sender: {
+                id: string;
+                displayName: string;
+                avatarUrl: string | null;
+            };
+            attachment: {
+                id: string;
+                createdAt: Date;
+                uploaderId: string;
+                storageKey: string;
+                originalName: string | null;
+                mimeType: string;
+                sizeBytes: bigint;
+                width: number | null;
+                height: number | null;
+                durationSeconds: number | null;
+                thumbnailKey: string | null;
+            } | null;
+            receipts: {
+                userId: string;
+                seenAt: Date | null;
+                deliveredAt: Date | null;
+            }[];
+        } & {
+            id: string;
+            createdAt: Date;
+            chatId: string;
+            senderId: string;
+            clientTempId: string | null;
+            type: import(".prisma/client").$Enums.MessageType;
+            textContent: string | null;
+            replyToMessageId: string | null;
+            attachmentId: string | null;
+            status: import(".prisma/client").$Enums.MessageStatus;
+            isDeleted: boolean;
+            editedAt: Date | null;
+        })[];
+        nextCursor: string | null;
     }>;
-    sendMessage(chatId: string, dto: SendMessageDto): Promise<{
-        message: string;
+    sendMessage(chatId: string, dto: SendMessageDto, user: JwtPayload): Promise<{
+        sender: {
+            id: string;
+            displayName: string;
+            avatarUrl: string | null;
+        };
+        attachment: {
+            id: string;
+            createdAt: Date;
+            uploaderId: string;
+            storageKey: string;
+            originalName: string | null;
+            mimeType: string;
+            sizeBytes: bigint;
+            width: number | null;
+            height: number | null;
+            durationSeconds: number | null;
+            thumbnailKey: string | null;
+        } | null;
+        receipts: {
+            userId: string;
+            seenAt: Date | null;
+            deliveredAt: Date | null;
+        }[];
+    } & {
+        id: string;
+        createdAt: Date;
+        chatId: string;
+        senderId: string;
+        clientTempId: string | null;
+        type: import(".prisma/client").$Enums.MessageType;
+        textContent: string | null;
+        replyToMessageId: string | null;
+        attachmentId: string | null;
+        status: import(".prisma/client").$Enums.MessageStatus;
+        isDeleted: boolean;
+        editedAt: Date | null;
     }>;
-    deleteMessage(chatId: string, messageId: string): Promise<{
-        message: string;
+    deleteMessage(chatId: string, messageId: string, forEveryone: string, user: JwtPayload): Promise<{
+        success: boolean;
+        type: string;
+    }>;
+    editMessage(chatId: string, messageId: string, dto: EditMessageDto, user: JwtPayload): Promise<{
+        id: string;
+        createdAt: Date;
+        chatId: string;
+        senderId: string;
+        clientTempId: string | null;
+        type: import(".prisma/client").$Enums.MessageType;
+        textContent: string | null;
+        replyToMessageId: string | null;
+        attachmentId: string | null;
+        status: import(".prisma/client").$Enums.MessageStatus;
+        isDeleted: boolean;
+        editedAt: Date | null;
     }>;
 }

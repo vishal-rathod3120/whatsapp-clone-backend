@@ -9,6 +9,7 @@ var TurnService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TurnService = void 0;
 const common_1 = require("@nestjs/common");
+const crypto = require("crypto");
 let TurnService = TurnService_1 = class TurnService {
     constructor() {
         this.logger = new common_1.Logger(TurnService_1.name);
@@ -27,8 +28,14 @@ let TurnService = TurnService_1 = class TurnService {
         return turnServers;
     }
     generateTurnCredentials() {
-        const username = Math.random().toString(36).substring(2, 15);
-        const credential = Math.random().toString(36).substring(2, 15);
+        const secret = process.env.TURN_SECRET;
+        if (!secret)
+            return { username: 'mock', credential: 'mock' };
+        const unixTimeStamp = Math.floor(Date.now() / 1000) + 24 * 3600;
+        const username = `${unixTimeStamp}:app_user`;
+        const hmac = crypto.createHmac('sha1', secret);
+        hmac.update(username);
+        const credential = hmac.digest('base64');
         return { username, credential };
     }
 };

@@ -14,6 +14,10 @@ const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const s3_storage_1 = require("./storage/s3.storage");
+const sharp = require("sharp");
+const fs_1 = require("fs");
+const path_1 = require("path");
+const child_process_1 = require("child_process");
 let MediaService = class MediaService {
     constructor(prisma, configService, s3Storage) {
         this.prisma = prisma;
@@ -22,6 +26,18 @@ let MediaService = class MediaService {
     }
     async createAttachment(uploaderId, file, storageKey) {
         const metadata = await this.getFileMetadata(file);
+        const mainBuffer = (0, fs_1.readFileSync)(file.path);
+        await this.s3Storage.upload(mainBuffer, storageKey, file.mimetype);
+        if (metadata.thumbnailKey) {
+            const thumbPath = (0, path_1.join)(file.destination, metadata.thumbnailKey);
+            try {
+                const thumbBuffer = (0, fs_1.readFileSync)(thumbPath);
+                await this.s3Storage.upload(thumbBuffer, metadata.thumbnailKey, 'image/webp');
+            }
+            catch (e) {
+                common_1.Logger.warn(`Failed to upload thumbnail to S3: ${e.message}`);
+            }
+        }
         const attachment = await this.prisma.attachment.create({
             data: {
                 uploaderId,
@@ -44,9 +60,34 @@ let MediaService = class MediaService {
     }
     async getFileMetadata(file) {
         const metadata = {};
-        if (file.mimetype.startsWith('image/')) {
+        try {
+            if (file.mimetype.startsWith('image/')) {
+                const buffer = (0, fs_1.readFileSync)(file.path);
+                const sharpInstance = sharp(buffer);
+                const meta = await sharpInstance.metadata();
+                metadata.width = meta.width;
+                metadata.height = meta.height;
+                const thumbBuffer = await sharpInstance
+                    .resize(256, 256, { fit: 'inside', withoutEnlargement: true })
+                    .webp({ quality: 80 })
+                    .toBuffer();
+                const thumbFilename = `thumb-${file.filename}.webp`;
+                const thumbPath = (0, path_1.join)(file.destination, thumbFilename);
+                (0, fs_1.writeFileSync)(thumbPath, thumbBuffer);
+                metadata.thumbnailKey = thumbFilename;
+            }
+            if (file.mimetype.startsWith('video/') || file.mimetype.startsWith('audio/')) {
+                try {
+                    const out = (0, child_process_1.execSync)(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${file.path}"`, { stdio: 'pipe' });
+                    metadata.duration = Math.round(parseFloat(out.toString()));
+                }
+                catch (err) {
+                    metadata.duration = 0;
+                }
+            }
         }
-        if (file.mimetype.startsWith('video/') || file.mimetype.startsWith('audio/')) {
+        catch (e) {
+            common_1.Logger.error(`Error processing media file metadata: ${e.message}`);
         }
         return metadata;
     }

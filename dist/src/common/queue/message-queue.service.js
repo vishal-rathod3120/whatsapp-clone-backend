@@ -44,8 +44,18 @@ let MessageQueueService = MessageQueueService_1 = class MessageQueueService {
         }
     }
     async completeJob(jobId) {
-        await this.redis.lrem(this.PROCESSING_KEY, 1, jobId);
-        this.logger.log(`Completed job ${jobId}`);
+        const jobJson = await this.redis.lrange(this.PROCESSING_KEY, 0, -1);
+        for (const json of jobJson) {
+            try {
+                const job = JSON.parse(json);
+                if (job.id === jobId) {
+                    await this.redis.lrem(this.PROCESSING_KEY, 1, json);
+                    this.logger.log(`Completed job ${jobId}`);
+                    return;
+                }
+            }
+            catch (e) { }
+        }
     }
     async failJob(jobId, error) {
         const jobJson = await this.redis.lrange(this.PROCESSING_KEY, 0, -1);

@@ -1,32 +1,34 @@
-import { Controller, Get, Post, Body, Param, Query, Patch } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Param, Query, Patch, UseGuards, Delete } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ChatsService } from './chats.service';
-import { CreateDirectChatDto, MarkChatReadDto, GetChatsQueryDto } from './dto/chat.dto';
+import { CreateDirectChatDto, MarkChatReadDto, GetChatsQueryDto, CreateGroupChatDto, AddMembersDto, UpdateMemberRoleDto, UpdateGroupDto } from './dto/chat.dto';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { JwtPayload } from '../auth/types/jwt-payload.type';
 
 @ApiTags('Chats')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('chats')
 export class ChatsController {
   constructor(private chatsService: ChatsService) {}
 
   @Post('direct')
   @ApiOperation({ summary: 'Create or get a direct chat' })
-  async createDirectChat(@Body() dto: CreateDirectChatDto) {
-    // User ID should come from auth guard
-    return { message: 'Create direct chat' };
+  async createDirectChat(@Body() dto: CreateDirectChatDto, @CurrentUser() user: JwtPayload) {
+    return this.chatsService.createDirectChat(user.sub, dto);
   }
 
   @Get()
   @ApiOperation({ summary: 'Get chat list' })
-  async getChats(@Query() query: GetChatsQueryDto) {
-    // User ID should come from auth guard
-    return { message: 'Get chats' };
+  async getChats(@Query() query: GetChatsQueryDto, @CurrentUser() user: JwtPayload) {
+    return this.chatsService.getChatList(user.sub, query.limit, query.cursor);
   }
 
   @Get(':chatId')
   @ApiOperation({ summary: 'Get chat details' })
-  async getChatById(@Param('chatId') chatId: string) {
-    // User ID should come from auth guard
-    return { message: 'Get chat details' };
+  async getChatById(@Param('chatId') chatId: string, @CurrentUser() user: JwtPayload) {
+    return this.chatsService.getChatById(chatId, user.sub);
   }
 
   @Post(':chatId/read')
@@ -34,8 +36,55 @@ export class ChatsController {
   async markChatAsRead(
     @Param('chatId') chatId: string,
     @Body() dto: MarkChatReadDto,
+    @CurrentUser() user: JwtPayload
   ) {
-    // User ID should come from auth guard
-    return { message: 'Mark chat as read' };
+    return this.chatsService.markChatAsRead(chatId, user.sub, dto.lastReadMessageId);
+  }
+
+  @Post('group')
+  @ApiOperation({ summary: 'Create a group chat' })
+  async createGroupChat(@Body() dto: CreateGroupChatDto, @CurrentUser() user: JwtPayload) {
+    return this.chatsService.createGroupChat(user.sub, dto);
+  }
+
+  @Post(':chatId/members')
+  @ApiOperation({ summary: 'Add members to group' })
+  async addGroupMembers(
+    @Param('chatId') chatId: string,
+    @Body() dto: AddMembersDto,
+    @CurrentUser() user: JwtPayload
+  ) {
+    return this.chatsService.addGroupMembers(chatId, user.sub, dto.userIds);
+  }
+
+  @Delete(':chatId/members/:userId')
+  @ApiOperation({ summary: 'Remove or kick member from group' })
+  async removeGroupMember(
+    @Param('chatId') chatId: string,
+    @Param('userId') targetUserId: string,
+    @CurrentUser() user: JwtPayload
+  ) {
+    return this.chatsService.removeGroupMember(chatId, user.sub, targetUserId);
+  }
+
+  @Patch(':chatId/members/:userId/role')
+  @ApiOperation({ summary: 'Update member role' })
+  async updateMemberRole(
+    @Param('chatId') chatId: string,
+    @Param('userId') targetUserId: string,
+    @Body() dto: UpdateMemberRoleDto,
+    @CurrentUser() user: JwtPayload
+  ) {
+    return this.chatsService.updateMemberRole(chatId, user.sub, targetUserId, dto.role);
+  }
+
+  @Patch(':chatId')
+  @ApiOperation({ summary: 'Update group info' })
+  async updateGroupInfo(
+    @Param('chatId') chatId: string,
+    @Body() dto: UpdateGroupDto,
+    @CurrentUser() user: JwtPayload
+  ) {
+    return this.chatsService.updateGroupInfo(chatId, user.sub, dto.title, dto.avatarUrl);
   }
 }

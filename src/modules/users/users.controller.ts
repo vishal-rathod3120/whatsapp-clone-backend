@@ -1,25 +1,28 @@
-import { Controller, Get, Patch, Post, Delete, Body, Param } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Controller, Get, Patch, Post, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { JwtPayload } from '../auth/types/jwt-payload.type';
 
 @ApiTags('Users')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('users')
 export class UsersController {
   constructor(private usersService: UsersService) {}
 
   @Get('me')
   @ApiOperation({ summary: 'Get current user profile' })
-  async getMe() {
-    // User ID should come from auth guard
-    return { message: 'Get current user' };
+  async getMe(@CurrentUser() user: JwtPayload) {
+    return this.usersService.findById(user.sub);
   }
 
   @Patch('me')
   @ApiOperation({ summary: 'Update current user profile' })
-  async updateMe(@Body() dto: UpdateProfileDto) {
-    // User ID should come from auth guard
-    return { message: 'Update profile' };
+  async updateMe(@Body() dto: UpdateProfileDto, @CurrentUser() user: JwtPayload) {
+    return this.usersService.updateProfile(user.sub, dto);
   }
 
   @Get(':id')
@@ -30,15 +33,13 @@ export class UsersController {
 
   @Post('block/:id')
   @ApiOperation({ summary: 'Block a user' })
-  async blockUser(@Param('id') id: string) {
-    // User ID should come from auth guard
-    return { message: 'Block user' };
+  async blockUser(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.usersService.blockUser(user.sub, id);
   }
 
   @Delete('block/:id')
   @ApiOperation({ summary: 'Unblock a user' })
-  async unblockUser(@Param('id') id: string) {
-    // User ID should come from auth guard
-    return { message: 'Unblock user' };
+  async unblockUser(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.usersService.unblockUser(user.sub, id);
   }
 }

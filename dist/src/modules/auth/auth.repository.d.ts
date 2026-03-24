@@ -5,6 +5,7 @@ export declare class AuthRepository {
     constructor(prisma: PrismaService);
     findUserByPhoneNumber(phoneNumber: string): Promise<{
         id: string;
+        createdAt: Date;
         phoneNumber: string | null;
         email: string | null;
         username: string | null;
@@ -13,11 +14,11 @@ export declare class AuthRepository {
         aboutText: string | null;
         passwordHash: string | null;
         isVerified: boolean;
-        createdAt: Date;
         updatedAt: Date;
     } | null>;
     findUserByEmail(email: string): Promise<{
         id: string;
+        createdAt: Date;
         phoneNumber: string | null;
         email: string | null;
         username: string | null;
@@ -26,11 +27,11 @@ export declare class AuthRepository {
         aboutText: string | null;
         passwordHash: string | null;
         isVerified: boolean;
-        createdAt: Date;
         updatedAt: Date;
     } | null>;
     findUserById(id: string): Promise<{
         id: string;
+        createdAt: Date;
         phoneNumber: string | null;
         email: string | null;
         username: string | null;
@@ -39,7 +40,6 @@ export declare class AuthRepository {
         aboutText: string | null;
         passwordHash: string | null;
         isVerified: boolean;
-        createdAt: Date;
         updatedAt: Date;
     } | null>;
     createUser(data: {
@@ -53,7 +53,6 @@ export declare class AuthRepository {
     }): Promise<{
         devices: {
             id: string;
-            createdAt: Date;
             userId: string;
             deviceType: import(".prisma/client").$Enums.DeviceType;
             deviceName: string | null;
@@ -62,9 +61,11 @@ export declare class AuthRepository {
             publicKey: string | null;
             isRevoked: boolean;
             lastActiveAt: Date | null;
+            createdAt: Date;
         }[];
     } & {
         id: string;
+        createdAt: Date;
         phoneNumber: string | null;
         email: string | null;
         username: string | null;
@@ -73,7 +74,6 @@ export declare class AuthRepository {
         aboutText: string | null;
         passwordHash: string | null;
         isVerified: boolean;
-        createdAt: Date;
         updatedAt: Date;
     }>;
     createDevice(data: {
@@ -83,7 +83,6 @@ export declare class AuthRepository {
         pushToken?: string;
     }): Promise<{
         id: string;
-        createdAt: Date;
         userId: string;
         deviceType: import(".prisma/client").$Enums.DeviceType;
         deviceName: string | null;
@@ -92,10 +91,10 @@ export declare class AuthRepository {
         publicKey: string | null;
         isRevoked: boolean;
         lastActiveAt: Date | null;
+        createdAt: Date;
     }>;
     updateDeviceRefreshToken(deviceId: string, refreshTokenHash: string): Promise<{
         id: string;
-        createdAt: Date;
         userId: string;
         deviceType: import(".prisma/client").$Enums.DeviceType;
         deviceName: string | null;
@@ -104,10 +103,10 @@ export declare class AuthRepository {
         publicKey: string | null;
         isRevoked: boolean;
         lastActiveAt: Date | null;
+        createdAt: Date;
     }>;
     findDevicesByUserId(userId: string): Promise<{
         id: string;
-        createdAt: Date;
         userId: string;
         deviceType: import(".prisma/client").$Enums.DeviceType;
         deviceName: string | null;
@@ -116,10 +115,10 @@ export declare class AuthRepository {
         publicKey: string | null;
         isRevoked: boolean;
         lastActiveAt: Date | null;
+        createdAt: Date;
     }[]>;
     findDeviceById(deviceId: string): Promise<{
         id: string;
-        createdAt: Date;
         userId: string;
         deviceType: import(".prisma/client").$Enums.DeviceType;
         deviceName: string | null;
@@ -128,5 +127,6 @@ export declare class AuthRepository {
         publicKey: string | null;
         isRevoked: boolean;
         lastActiveAt: Date | null;
+        createdAt: Date;
     } | null>;
 }

@@ -12,14 +12,15 @@ const schedule_1 = require("@nestjs/schedule");
 const call_timeout_job_1 = require("./call-timeout.job");
 const cleanup_presence_job_1 = require("./cleanup-presence.job");
 const unread_counter_job_1 = require("./unread-counter.job");
+const message_receipt_worker_1 = require("./message-receipt.worker");
 let JobsModule = class JobsModule {
 };
 exports.JobsModule = JobsModule;
 exports.JobsModule = JobsModule = __decorate([
     (0, common_1.Module)({
         imports: [schedule_1.ScheduleModule.forRoot()],
-        providers: [call_timeout_job_1.CallTimeoutJob, cleanup_presence_job_1.CleanupPresenceJob, unread_counter_job_1.UnreadCounterJob],
-        exports: [call_timeout_job_1.CallTimeoutJob, cleanup_presence_job_1.CleanupPresenceJob, unread_counter_job_1.UnreadCounterJob],
+        providers: [call_timeout_job_1.CallTimeoutJob, cleanup_presence_job_1.CleanupPresenceJob, unread_counter_job_1.UnreadCounterJob, message_receipt_worker_1.MessageReceiptWorker],
+        exports: [call_timeout_job_1.CallTimeoutJob, cleanup_presence_job_1.CleanupPresenceJob, unread_counter_job_1.UnreadCounterJob, message_receipt_worker_1.MessageReceiptWorker],
     })
 ], JobsModule);
 //# sourceMappingURL=jobs.module.js.map

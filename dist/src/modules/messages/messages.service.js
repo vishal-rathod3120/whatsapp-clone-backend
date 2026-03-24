@@ -8,16 +8,23 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MessagesService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const enums_1 = require("../../common/enums");
 const message_queue_service_1 = require("../../common/queue/message-queue.service");
+const uuidv7_1 = require("uuidv7");
+const chat_gateway_1 = require("../gateway/chat.gateway");
+const common_2 = require("@nestjs/common");
 let MessagesService = class MessagesService {
-    constructor(prisma, messageQueue) {
+    constructor(prisma, messageQueue, chatGateway) {
         this.prisma = prisma;
         this.messageQueue = messageQueue;
+        this.chatGateway = chatGateway;
     }
     async createMessage(chatId, senderId, dto) {
         const chat = await this.prisma.chat.findUnique({
@@ -44,9 +51,19 @@ let MessagesService = class MessagesService {
             }
         }
         const members = chat.members;
+        if (dto.replyToMessageId) {
+            const replyMsg = await this.prisma.message.findUnique({
+                where: { id: dto.replyToMessageId },
+                select: { chatId: true }
+            });
+            if (!replyMsg || replyMsg.chatId !== chatId) {
+                throw new common_1.NotFoundException('Reply message not found in this chat');
+            }
+        }
         const message = await this.prisma.$transaction(async (tx) => {
             const msg = await tx.message.create({
                 data: {
+                    id: (0, uuidv7_1.uuidv7)(),
                     chatId,
                     senderId,
                     clientTempId: dto.clientTempId,
@@ -123,6 +140,7 @@ let MessagesService = class MessagesService {
             where: {
                 chatId,
                 isDeleted: false,
+                deletedByUsers: { none: { userId } },
             },
             take: limit + 1,
             ...(cursor && {
@@ -226,6 +244,7 @@ let MessagesService = class MessagesService {
                     },
                 },
                 isDeleted: false,
+                deletedByUsers: { none: { userId } },
             },
             orderBy: { createdAt: 'asc' },
             include: {
@@ -251,11 +270,101 @@ let MessagesService = class MessagesService {
         });
         return messages;
     }
+    async deleteMessage(chatId, messageId, userId, forEveryone) {
+        const message = await this.prisma.message.findUnique({
+            where: { id: messageId },
+        });
+        if (!message || message.chatId !== chatId) {
+            throw new common_1.NotFoundException('Message not found');
+        }
+        if (forEveryone) {
+            if (message.senderId !== userId) {
+                throw new common_1.ForbiddenException('You can only delete your own messages for everyone');
+            }
+            const fifteenMinutesMs = 15 * 60 * 1000;
+            if (Date.now() - message.createdAt.getTime() > fifteenMinutesMs) {
+                throw new common_1.ForbiddenException('You can only delete messages within 15 minutes of sending');
+            }
+            await this.prisma.message.update({
+                where: { id: messageId },
+                data: {
+                    isDeleted: true,
+                    textContent: null,
+                    attachmentId: null,
+                },
+            });
+            const members = await this.prisma.chatMember.findMany({
+                where: { chatId, leftAt: null },
+                select: { userId: true },
+            });
+            members.forEach((m) => {
+                this.chatGateway.server.to(`user:${m.userId}`).emit('message:deleted', {
+                    chatId,
+                    messageId,
+                    deletedForEveryone: true,
+                });
+            });
+            return { success: true, type: 'EVERYONE' };
+        }
+        else {
+            await this.prisma.deletedMessage.upsert({
+                where: {
+                    messageId_userId: { userId, messageId },
+                },
+                update: {},
+                create: {
+                    userId,
+                    messageId,
+                },
+            });
+            return { success: true, type: 'ME' };
+        }
+    }
+    async editMessage(chatId, messageId, userId, newTextContent) {
+        const message = await this.prisma.message.findUnique({
+            where: { id: messageId },
+        });
+        if (!message || message.chatId !== chatId) {
+            throw new common_1.NotFoundException('Message not found');
+        }
+        if (message.senderId !== userId) {
+            throw new common_1.ForbiddenException('You can only edit your own messages');
+        }
+        if (message.type !== enums_1.MessageType.TEXT) {
+            throw new common_1.ForbiddenException('Only text messages can be edited');
+        }
+        const fifteenMinutesMs = 15 * 60 * 1000;
+        if (Date.now() - message.createdAt.getTime() > fifteenMinutesMs) {
+            throw new common_1.ForbiddenException('You can only edit messages within 15 minutes of sending');
+        }
+        const updated = await this.prisma.message.update({
+            where: { id: messageId },
+            data: {
+                textContent: newTextContent,
+                editedAt: new Date(),
+            },
+        });
+        const members = await this.prisma.chatMember.findMany({
+            where: { chatId, leftAt: null },
+            select: { userId: true },
+        });
+        members.forEach((m) => {
+            this.chatGateway.server.to(`user:${m.userId}`).emit('message:edited', {
+                chatId,
+                messageId,
+                textContent: newTextContent,
+                editedAt: updated.editedAt,
+            });
+        });
+        return updated;
+    }
 };
 exports.MessagesService = MessagesService;
 exports.MessagesService = MessagesService = __decorate([
     (0, common_1.Injectable)(),
+    __param(2, (0, common_2.Inject)((0, common_2.forwardRef)(() => chat_gateway_1.ChatGateway))),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        message_queue_service_1.MessageQueueService])
+        message_queue_service_1.MessageQueueService,
+        chat_gateway_1.ChatGateway])
 ], MessagesService);
 //# sourceMappingURL=messages.service.js.map

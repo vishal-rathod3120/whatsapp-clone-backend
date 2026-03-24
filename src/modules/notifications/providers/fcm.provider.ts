@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import * as admin from 'firebase-admin';
 
 @Injectable()
 export class FcmProvider {
@@ -10,8 +11,22 @@ export class FcmProvider {
     body: string,
     data?: Record<string, string>,
   ): Promise<void> {
-    // TODO: Implement FCM integration using firebase-admin
-    this.logger.log(`Sending FCM notification to ${deviceToken}`);
+    if (!admin.apps.length) return;
+    try {
+      const payload: any = {
+        token: deviceToken,
+        data,
+        android: { priority: 'high' }
+      };
+      
+      if (title && body) {
+        payload.notification = { title, body };
+      }
+      
+      await admin.messaging().send(payload);
+    } catch (e) {
+      this.logger.error(`FCM failed: ${e.message}`);
+    }
   }
 
   async sendMulticast(
@@ -20,6 +35,21 @@ export class FcmProvider {
     body: string,
     data?: Record<string, string>,
   ): Promise<void> {
-    this.logger.log(`Sending FCM multicast to ${deviceTokens.length} devices`);
+    if (!admin.apps.length || !deviceTokens.length) return;
+    try {
+      const payload: any = {
+        tokens: deviceTokens,
+        data,
+        android: { priority: 'high' }
+      };
+
+      if (title && body) {
+        payload.notification = { title, body };
+      }
+
+      await admin.messaging().sendEachForMulticast(payload);
+    } catch (e) {
+      this.logger.error(`FCM Multicast failed: ${e.message}`);
+    }
   }
 }

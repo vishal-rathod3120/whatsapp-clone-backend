@@ -11,11 +11,13 @@ const common_1 = require("@nestjs/common");
 const calls_controller_1 = require("./calls.controller");
 const calls_service_1 = require("./calls.service");
 const turn_service_1 = require("../../integrations/turn/turn.service");
+const auth_module_1 = require("../auth/auth.module");
 let CallsModule = class CallsModule {
 };
 exports.CallsModule = CallsModule;
 exports.CallsModule = CallsModule = __decorate([
     (0, common_1.Module)({
+        imports: [auth_module_1.AuthModule],
         controllers: [calls_controller_1.CallsController],
         providers: [calls_service_1.CallsService, turn_service_1.TurnService],
         exports: [calls_service_1.CallsService],
