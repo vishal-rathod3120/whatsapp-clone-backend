@@ -39,15 +39,15 @@ export declare class MessagesRepository {
         id: string;
         createdAt: Date;
         type: import(".prisma/client").$Enums.MessageType;
-        chatId: string;
-        senderId: string;
         clientTempId: string | null;
         textContent: string | null;
         replyToMessageId: string | null;
-        attachmentId: string | null;
         status: import(".prisma/client").$Enums.MessageStatus;
         isDeleted: boolean;
         editedAt: Date | null;
+        chatId: string;
+        senderId: string;
+        attachmentId: string | null;
     }>;
     findById(messageId: string): Promise<({
         sender: {
@@ -77,15 +77,15 @@ export declare class MessagesRepository {
         id: string;
         createdAt: Date;
         type: import(".prisma/client").$Enums.MessageType;
-        chatId: string;
-        senderId: string;
         clientTempId: string | null;
         textContent: string | null;
         replyToMessageId: string | null;
-        attachmentId: string | null;
         status: import(".prisma/client").$Enums.MessageStatus;
         isDeleted: boolean;
         editedAt: Date | null;
+        chatId: string;
+        senderId: string;
+        attachmentId: string | null;
     }) | null>;
     findByChatId(chatId: string, userId: string, limit: number, cursor?: string): Promise<({
         sender: {
@@ -115,15 +115,15 @@ export declare class MessagesRepository {
         id: string;
         createdAt: Date;
         type: import(".prisma/client").$Enums.MessageType;
-        chatId: string;
-        senderId: string;
         clientTempId: string | null;
         textContent: string | null;
         replyToMessageId: string | null;
-        attachmentId: string | null;
         status: import(".prisma/client").$Enums.MessageStatus;
         isDeleted: boolean;
         editedAt: Date | null;
+        chatId: string;
+        senderId: string;
+        attachmentId: string | null;
     })[]>;
     createReceipts(messageId: string, userIds: string[]): Promise<import(".prisma/client").Prisma.BatchPayload>;
     markAsDelivered(messageId: string, userId: string): Promise<import(".prisma/client").Prisma.BatchPayload>;

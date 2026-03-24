@@ -14,14 +14,12 @@ const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const presence_repository_1 = require("../../redis/presence.repository");
 const chats_service_1 = require("../chats/chats.service");
-const messages_service_1 = require("../messages/messages.service");
 const notifications_service_1 = require("../notifications/notifications.service");
 let SocketSessionService = class SocketSessionService {
-    constructor(prisma, presenceRepository, chatsService, messagesService, notificationsService) {
+    constructor(prisma, presenceRepository, chatsService, notificationsService) {
         this.prisma = prisma;
         this.presenceRepository = presenceRepository;
         this.chatsService = chatsService;
-        this.messagesService = messagesService;
         this.notificationsService = notificationsService;
         this.sessions = new Map();
         this.userSockets = new Map();
@@ -64,7 +62,6 @@ exports.SocketSessionService = SocketSessionService = __decorate([
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         presence_repository_1.PresenceRepository,
         chats_service_1.ChatsService,
-        messages_service_1.MessagesService,
         notifications_service_1.NotificationsService])
 ], SocketSessionService);
 //# sourceMappingURL=socket-session.service.js.map

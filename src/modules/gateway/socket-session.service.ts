@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PresenceRepository } from '../../redis/presence.repository';
 import { ChatsService } from '../chats/chats.service';
-import { MessagesService } from '../messages/messages.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
@@ -16,7 +15,6 @@ export class SocketSessionService {
     private prisma: PrismaService,
     private presenceRepository: PresenceRepository,
     private chatsService: ChatsService,
-    private messagesService: MessagesService,
     private notificationsService: NotificationsService,
   ) {}
 

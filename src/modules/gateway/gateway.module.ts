@@ -1,4 +1,4 @@
-import { Global, Module } from '@nestjs/common';
+import { Global, Module, forwardRef } from '@nestjs/common';
 import { ChatGateway } from './chat.gateway';
 import { CallGateway } from './call.gateway';
 import { SocketSessionService } from './socket-session.service';
@@ -7,14 +7,20 @@ import { ServerOptions } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { RedisService } from '../../redis/redis.service';
 import { ChatsModule } from '../chats/chats.module';
-import { MessagesModule } from '../messages/messages.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AuthModule } from '../auth/auth.module';
 import { RedisModule } from '../../redis/redis.module';
+import { MessagesModule } from '../messages/messages.module';
 
 @Global()
 @Module({
-  imports: [ChatsModule, MessagesModule, NotificationsModule, AuthModule, RedisModule],
+  imports: [
+    ChatsModule, 
+    NotificationsModule, 
+    AuthModule, 
+    RedisModule,
+    forwardRef(() => MessagesModule)
+  ],
   providers: [ChatGateway, CallGateway, SocketSessionService],
   exports: [SocketSessionService, ChatGateway],
 })

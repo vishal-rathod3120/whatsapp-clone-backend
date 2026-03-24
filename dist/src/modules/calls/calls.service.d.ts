@@ -13,21 +13,21 @@ export declare class CallsService {
                     };
                 } & {
                     id: string;
-                    userId: string;
-                    chatId: string;
                     role: import(".prisma/client").$Enums.ChatMemberRole;
                     joinedAt: Date;
                     leftAt: Date | null;
                     isMuted: boolean;
                     lastReadMessageId: string | null;
+                    userId: string;
+                    chatId: string;
                 })[];
             } & {
                 id: string;
-                createdAt: Date;
-                title: string | null;
-                type: import(".prisma/client").$Enums.ChatType;
                 avatarUrl: string | null;
+                createdAt: Date;
                 updatedAt: Date;
+                type: import(".prisma/client").$Enums.ChatType;
+                title: string | null;
                 createdById: string;
                 lastMessageId: string | null;
                 lastMessageAt: Date | null;
@@ -45,22 +45,22 @@ export declare class CallsService {
                 };
             } & {
                 id: string;
-                userId: string;
                 joinedAt: Date | null;
                 leftAt: Date | null;
+                userId: string;
                 callId: string;
             })[];
         } & {
             id: string;
             createdAt: Date;
             type: import(".prisma/client").$Enums.CallType;
-            chatId: string;
             status: import(".prisma/client").$Enums.CallStatus;
-            callerId: string;
+            chatId: string;
             startedAt: Date | null;
             answeredAt: Date | null;
             endedAt: Date | null;
             endReason: string | null;
+            callerId: string;
         })[];
         nextCursor: string | null;
     }>;
@@ -74,21 +74,21 @@ export declare class CallsService {
                 };
             } & {
                 id: string;
-                userId: string;
-                chatId: string;
                 role: import(".prisma/client").$Enums.ChatMemberRole;
                 joinedAt: Date;
                 leftAt: Date | null;
                 isMuted: boolean;
                 lastReadMessageId: string | null;
+                userId: string;
+                chatId: string;
             })[];
         } & {
             id: string;
-            createdAt: Date;
-            title: string | null;
-            type: import(".prisma/client").$Enums.ChatType;
             avatarUrl: string | null;
+            createdAt: Date;
             updatedAt: Date;
+            type: import(".prisma/client").$Enums.ChatType;
+            title: string | null;
             createdById: string;
             lastMessageId: string | null;
             lastMessageAt: Date | null;
@@ -106,21 +106,21 @@ export declare class CallsService {
             };
         } & {
             id: string;
-            userId: string;
             joinedAt: Date | null;
             leftAt: Date | null;
+            userId: string;
             callId: string;
         })[];
     } & {
         id: string;
         createdAt: Date;
         type: import(".prisma/client").$Enums.CallType;
-        chatId: string;
         status: import(".prisma/client").$Enums.CallStatus;
-        callerId: string;
+        chatId: string;
         startedAt: Date | null;
         answeredAt: Date | null;
         endedAt: Date | null;
         endReason: string | null;
+        callerId: string;
     }>;
 }

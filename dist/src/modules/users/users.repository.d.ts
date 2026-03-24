@@ -4,13 +4,13 @@ export declare class UsersRepository {
     constructor(prisma: PrismaService);
     findById(userId: string): Promise<{
         id: string;
-        createdAt: Date;
         phoneNumber: string | null;
         email: string | null;
         displayName: string;
         avatarUrl: string | null;
         aboutText: string | null;
         isVerified: boolean;
+        createdAt: Date;
     } | null>;
     updateProfile(userId: string, data: {
         displayName?: string;

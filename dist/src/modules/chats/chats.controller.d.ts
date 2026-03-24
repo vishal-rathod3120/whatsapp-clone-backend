@@ -7,21 +7,21 @@ export declare class ChatsController {
     createDirectChat(dto: CreateDirectChatDto, user: JwtPayload): Promise<{
         members: {
             id: string;
-            userId: string;
-            chatId: string;
             role: import(".prisma/client").$Enums.ChatMemberRole;
             joinedAt: Date;
             leftAt: Date | null;
             isMuted: boolean;
             lastReadMessageId: string | null;
+            userId: string;
+            chatId: string;
         }[];
     } & {
         id: string;
-        createdAt: Date;
-        title: string | null;
-        type: import(".prisma/client").$Enums.ChatType;
         avatarUrl: string | null;
+        createdAt: Date;
         updatedAt: Date;
+        type: import(".prisma/client").$Enums.ChatType;
+        title: string | null;
         createdById: string;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
@@ -36,9 +36,9 @@ export declare class ChatsController {
                 id: string;
                 createdAt: Date;
                 type: import(".prisma/client").$Enums.MessageType;
-                senderId: string;
                 textContent: string | null;
                 status: import(".prisma/client").$Enums.MessageStatus;
+                senderId: string;
             };
             unreadCount: number;
             lastMessageAt: Date | null;
@@ -74,21 +74,21 @@ export declare class ChatsController {
             };
         } & {
             id: string;
-            userId: string;
-            chatId: string;
             role: import(".prisma/client").$Enums.ChatMemberRole;
             joinedAt: Date;
             leftAt: Date | null;
             isMuted: boolean;
             lastReadMessageId: string | null;
+            userId: string;
+            chatId: string;
         })[];
     } & {
         id: string;
-        createdAt: Date;
-        title: string | null;
-        type: import(".prisma/client").$Enums.ChatType;
         avatarUrl: string | null;
+        createdAt: Date;
         updatedAt: Date;
+        type: import(".prisma/client").$Enums.ChatType;
+        title: string | null;
         createdById: string;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
@@ -105,11 +105,11 @@ export declare class ChatsController {
     }>;
     updateGroupInfo(chatId: string, dto: UpdateGroupDto, user: JwtPayload): Promise<{
         id: string;
-        createdAt: Date;
-        title: string | null;
-        type: import(".prisma/client").$Enums.ChatType;
         avatarUrl: string | null;
+        createdAt: Date;
         updatedAt: Date;
+        type: import(".prisma/client").$Enums.ChatType;
+        title: string | null;
         createdById: string;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
