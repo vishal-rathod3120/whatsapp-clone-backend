@@ -1,0 +1,34 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SocketEvents = void 0;
+exports.SocketEvents = {
+    CLIENT_TO_SERVER: {
+        CHAT_SEND: 'chat:send',
+        CHAT_DELIVERED: 'chat:delivered',
+        CHAT_SEEN: 'chat:seen',
+        TYPING_START: 'chat:typing:start',
+        TYPING_STOP: 'chat:typing:stop',
+        CALL_INITIATE: 'call:initiate',
+        CALL_ACCEPT: 'call:accept',
+        CALL_REJECT: 'call:reject',
+        CALL_END: 'call:end',
+        CALL_OFFER: 'call:offer',
+        CALL_ANSWER: 'call:answer',
+        CALL_ICE_CANDIDATE: 'call:ice-candidate',
+        PRESENCE_SUBSCRIBE: 'presence:subscribe',
+    },
+    SERVER_TO_CLIENT: {
+        CHAT_NEW: 'chat:new',
+        CHAT_SENT_ACK: 'chat:sent-ack',
+        CHAT_DELIVERED_UPDATE: 'chat:delivered:update',
+        CHAT_SEEN_UPDATE: 'chat:seen:update',
+        TYPING_UPDATE: 'chat:typing:update',
+        PRESENCE_UPDATE: 'presence:update',
+        CALL_INCOMING: 'call:incoming',
+        CALL_ACCEPTED: 'call:accepted',
+        CALL_REJECTED: 'call:rejected',
+        CALL_ENDED: 'call:ended',
+        CALL_TIMEOUT: 'call:timeout',
+    },
+};
+//# sourceMappingURL=socket.events.js.map

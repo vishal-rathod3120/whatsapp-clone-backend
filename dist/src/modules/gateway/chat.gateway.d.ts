@@ -1,0 +1,31 @@
+import { OnGatewayConnection, OnGatewayDisconnect } from '@nestjs/websockets';
+import { Server, Socket } from 'socket.io';
+import { SocketSessionService } from './socket-session.service';
+import { ChatsService } from '../chats/chats.service';
+import { MessagesService } from '../messages/messages.service';
+import { PresenceRepository } from '../../redis/presence.repository';
+import { NotificationsService } from '../notifications/notifications.service';
+import { SendMessageDto, DeliveredDto, SeenDto } from '../messages/dto/message.dto';
+export declare class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
+    private socketSessionService;
+    private chatsService;
+    private messagesService;
+    private presenceRepository;
+    private notificationsService;
+    server: Server;
+    constructor(socketSessionService: SocketSessionService, chatsService: ChatsService, messagesService: MessagesService, presenceRepository: PresenceRepository, notificationsService: NotificationsService);
+    handleConnection(socket: Socket): Promise<void>;
+    private replayMissedMessages;
+    handleDisconnect(socket: Socket): Promise<void>;
+    handleSendMessage(socket: Socket, payload: SendMessageDto & {
+        chatId: string;
+    }): Promise<void>;
+    handleDelivered(socket: Socket, payload: DeliveredDto): Promise<void>;
+    handleSeen(socket: Socket, payload: SeenDto): Promise<void>;
+    handleTypingStart(socket: Socket, payload: {
+        chatId: string;
+    }): Promise<void>;
+    handleTypingStop(socket: Socket, payload: {
+        chatId: string;
+    }): Promise<void>;
+}

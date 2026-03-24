@@ -1,0 +1,268 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum DeviceType {
+  ANDROID
+  IOS
+  WEB
+  DESKTOP
+}
+
+enum ChatType {
+  DIRECT
+  GROUP
+}
+
+enum ChatMemberRole {
+  MEMBER
+  ADMIN
+  OWNER
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  AUDIO
+  VIDEO
+  SYSTEM
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  SEEN
+}
+
+enum CallType {
+  AUDIO
+  VIDEO
+}
+
+enum CallStatus {
+  RINGING
+  ACCEPTED
+  REJECTED
+  MISSED
+  ENDED
+  FAILED
+}
+
+model User {
+  id             String      @id @default(uuid())
+  phoneNumber    String?     @unique
+  email          String?     @unique
+  username       String?     @unique
+  displayName    String
+  avatarUrl      String?
+  aboutText      String?
+  passwordHash   String?
+  isVerified     Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  devices        Device[]
+  createdChats   Chat[]      @relation("ChatCreator")
+  memberships    ChatMember[]
+  sentMessages   Message[]   @relation("MessageSender")
+  attachments    Attachment[]
+  blockedBy      UserBlock[] @relation("BlockedUser")
+  blocking       UserBlock[] @relation("BlockerUser")
+  initiatedCalls Call[]      @relation("CallInitiator")
+  callParticipants CallParticipant[]
+  messageReceipts  MessageReceipt[]
+  deletedMessages  DeletedMessage[]
+
+  @@map("users")
+}
+
+model Device {
+  id               String     @id @default(uuid())
+  userId           String
+  deviceType       DeviceType
+  deviceName       String?
+  pushToken        String?
+  refreshTokenHash String?
+  publicKey        String?    // For E2EE - stores the device's X3DH identity key
+  isRevoked        Boolean    @default(false)
+  lastActiveAt     DateTime?
+  createdAt        DateTime   @default(now())
+
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("devices")
+}
+
+model Chat {
+  id             String       @id @default(uuid())
+  type           ChatType
+  title          String?
+  avatarUrl      String?
+  createdById    String
+  lastMessageId  String?
+  lastMessageAt  DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  createdBy      User         @relation("ChatCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  members        ChatMember[]
+  messages       Message[]
+  calls          Call[]
+
+  @@index([createdById])
+  @@index([lastMessageAt])
+  @@map("chats")
+}
+
+model ChatMember {
+  id                String         @id @default(uuid())
+  chatId            String
+  userId            String
+  role              ChatMemberRole @default(MEMBER)
+  joinedAt          DateTime       @default(now())
+  leftAt            DateTime?
+  isMuted           Boolean        @default(false)
+  lastReadMessageId String?
+
+  chat              Chat           @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, userId])
+  @@index([chatId])
+  @@index([userId])
+  @@map("chat_members")
+}
+
+model Message {
+  id               String           @id @default(uuid())
+  chatId           String
+  senderId         String
+  clientTempId     String?
+  type             MessageType
+  textContent      String?
+  replyToMessageId String?
+  attachmentId     String?
+  status           MessageStatus    @default(SENT)
+  isDeleted        Boolean          @default(false)
+  createdAt        DateTime         @default(now())
+  editedAt         DateTime?
+
+  chat             Chat             @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender           User             @relation("MessageSender", fields: [senderId], references: [id], onDelete: Restrict)
+  attachment       Attachment?      @relation(fields: [attachmentId], references: [id], onDelete: SetNull)
+  receipts         MessageReceipt[]
+  deletedByUsers   DeletedMessage[]
+
+  @@index([chatId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([senderId])
+  @@index([attachmentId])
+  @@unique([senderId, clientTempId])
+  @@map("messages")
+}
+
+model MessageReceipt {
+  id          String    @id @default(uuid())
+  messageId   String
+  userId      String
+  deliveredAt DateTime?
+  seenAt      DateTime?
+
+  message      Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId])
+  @@map("message_receipts")
+}
+
+model DeletedMessage {
+  id          String   @id @default(uuid())
+  messageId   String
+  userId      String
+  deletedAt   DateTime @default(now())
+
+  message     Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId])
+  @@map("deleted_messages")
+}
+
+model Attachment {
+  id              String    @id @default(uuid())
+  uploaderId      String
+  storageKey      String
+  originalName    String?
+  mimeType        String
+  sizeBytes       BigInt
+  width           Int?
+  height          Int?
+  durationSeconds Int?
+  thumbnailKey    String?
+  createdAt       DateTime  @default(now())
+
+  uploader        User      @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  messages        Message[]
+
+  @@index([uploaderId])
+  @@map("attachments")
+}
+
+model UserBlock {
+  id         String   @id @default(uuid())
+  blockerId  String
+  blockedId  String
+  createdAt  DateTime @default(now())
+
+  blocker    User     @relation("BlockerUser", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked    User     @relation("BlockedUser", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+  @@map("user_blocks")
+}
+
+model Call {
+  id          String            @id @default(uuid())
+  chatId       String
+  callerId     String
+  type         CallType
+  status       CallStatus
+  startedAt    DateTime?
+  answeredAt   DateTime?
+  endedAt      DateTime?
+  endReason    String?
+  createdAt    DateTime          @default(now())
+
+  chat         Chat              @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  caller       User              @relation("CallInitiator", fields: [callerId], references: [id], onDelete: Restrict)
+  participants CallParticipant[]
+
+  @@index([chatId])
+  @@index([callerId])
+  @@index([createdAt])
+  @@map("calls")
+}
+
+model CallParticipant {
+  id        String    @id @default(uuid())
+  callId     String
+  userId     String
+  joinedAt   DateTime?
+  leftAt     DateTime?
+
+  call       Call      @relation(fields: [callId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([callId, userId])
+  @@index([userId])
+  @@map("call_participants")
+}
