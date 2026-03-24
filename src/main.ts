@@ -5,8 +5,23 @@ import { AppModule } from './app.module';
 import helmet from 'helmet';
 import * as compression from 'compression';
 
+process.on('unhandledRejection', (reason, promise) => {
+  console.log('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  try {
+    const app = await NestFactory.create(AppModule, {
+      abortOnError: false,
+      logger: {
+        log: console.log,
+        error: console.error,
+        warn: console.warn,
+        debug: console.log,
+        verbose: console.log,
+        fatal: console.error,
+      }
+    });
 
   // Security
   app.use(helmet());
@@ -43,5 +58,10 @@ async function bootstrap() {
   await app.listen(port);
   console.log(`Application running on: http://localhost:${port}`);
   console.log(`API docs available at: http://localhost:${port}/docs`);
+  } catch (err: any) {
+    console.error('FATAL BOOTSTRAP ERROR:', err);
+    require('fs').writeFileSync('fatal.log', err.stack || err.toString());
+    process.exit(1);
+  }
 }
 bootstrap();

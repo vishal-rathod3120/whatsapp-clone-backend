@@ -1,12 +1,13 @@
 import { PrismaService } from '../../prisma/prisma.service';
 import { SendMessageDto } from './dto/message.dto';
 import { MessageQueueService } from '../../common/queue/message-queue.service';
-import { ChatGateway } from '../gateway/chat.gateway';
+import { ModuleRef } from '@nestjs/core';
 export declare class MessagesService {
     private prisma;
     private messageQueue;
-    private chatGateway;
-    constructor(prisma: PrismaService, messageQueue: MessageQueueService, chatGateway: ChatGateway);
+    private moduleRef;
+    constructor(prisma: PrismaService, messageQueue: MessageQueueService, moduleRef: ModuleRef);
+    private get chatGateway();
     createMessage(chatId: string, senderId: string, dto: SendMessageDto): Promise<{
         attachment: {
             id: string;

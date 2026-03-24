@@ -4,17 +4,21 @@ import { SendMessageDto } from './dto/message.dto';
 import { MessageType, MessageStatus, ChatType } from '../../common/enums';
 import { MessageQueueService } from '../../common/queue/message-queue.service';
 import { uuidv7 } from 'uuidv7';
-import { ChatGateway } from '../gateway/chat.gateway';
-import { forwardRef, Inject } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
+// import { ChatGateway } from '../gateway/chat.gateway'; // Removed direct import to break potential cyclic dependency
+// import { forwardRef, Inject } from '@nestjs/common'; // Not needed if not directly injecting
 
 @Injectable()
 export class MessagesService {
   constructor(
     private prisma: PrismaService,
     private messageQueue: MessageQueueService,
-    @Inject(forwardRef(() => ChatGateway))
-    private chatGateway: ChatGateway,
+    private moduleRef: ModuleRef,
   ) {}
+
+  private get chatGateway(): any {
+    return this.moduleRef.get('ChatGateway', { strict: false });
+  }
 
   async createMessage(chatId: string, senderId: string, dto: SendMessageDto) {
     // Fetch chat to verify block status and get members

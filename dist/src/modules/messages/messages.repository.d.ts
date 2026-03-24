@@ -20,7 +20,6 @@ export declare class MessagesRepository {
         attachment: {
             id: string;
             createdAt: Date;
-            uploaderId: string;
             storageKey: string;
             originalName: string | null;
             mimeType: string;
@@ -29,6 +28,7 @@ export declare class MessagesRepository {
             height: number | null;
             durationSeconds: number | null;
             thumbnailKey: string | null;
+            uploaderId: string;
         } | null;
         receipts: {
             userId: string;
@@ -58,7 +58,6 @@ export declare class MessagesRepository {
         attachment: {
             id: string;
             createdAt: Date;
-            uploaderId: string;
             storageKey: string;
             originalName: string | null;
             mimeType: string;
@@ -67,6 +66,7 @@ export declare class MessagesRepository {
             height: number | null;
             durationSeconds: number | null;
             thumbnailKey: string | null;
+            uploaderId: string;
         } | null;
         receipts: {
             userId: string;
@@ -96,7 +96,6 @@ export declare class MessagesRepository {
         attachment: {
             id: string;
             createdAt: Date;
-            uploaderId: string;
             storageKey: string;
             originalName: string | null;
             mimeType: string;
@@ -105,6 +104,7 @@ export declare class MessagesRepository {
             height: number | null;
             durationSeconds: number | null;
             thumbnailKey: string | null;
+            uploaderId: string;
         } | null;
         receipts: {
             userId: string;

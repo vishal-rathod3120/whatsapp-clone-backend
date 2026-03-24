@@ -56,11 +56,11 @@ export declare class CallsService {
             type: import(".prisma/client").$Enums.CallType;
             status: import(".prisma/client").$Enums.CallStatus;
             chatId: string;
+            callerId: string;
             startedAt: Date | null;
             answeredAt: Date | null;
             endedAt: Date | null;
             endReason: string | null;
-            callerId: string;
         })[];
         nextCursor: string | null;
     }>;
@@ -117,10 +117,10 @@ export declare class CallsService {
         type: import(".prisma/client").$Enums.CallType;
         status: import(".prisma/client").$Enums.CallStatus;
         chatId: string;
+        callerId: string;
         startedAt: Date | null;
         answeredAt: Date | null;
         endedAt: Date | null;
         endReason: string | null;
-        callerId: string;
     }>;
 }
