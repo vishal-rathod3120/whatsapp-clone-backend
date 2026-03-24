@@ -17,14 +17,16 @@ const chats_service_1 = require("../chats/chats.service");
 const messages_service_1 = require("../messages/messages.service");
 const presence_repository_1 = require("../../redis/presence.repository");
 const notifications_service_1 = require("../notifications/notifications.service");
+const auth_token_service_1 = require("../auth/auth-token.service");
 const message_dto_1 = require("../messages/dto/message.dto");
 let ChatGateway = class ChatGateway {
-    constructor(socketSessionService, chatsService, messagesService, presenceRepository, notificationsService) {
+    constructor(socketSessionService, chatsService, messagesService, presenceRepository, notificationsService, authTokenService) {
         this.socketSessionService = socketSessionService;
         this.chatsService = chatsService;
         this.messagesService = messagesService;
         this.presenceRepository = presenceRepository;
         this.notificationsService = notificationsService;
+        this.authTokenService = authTokenService;
     }
     async handleConnection(socket) {
         try {
@@ -33,7 +35,15 @@ let ChatGateway = class ChatGateway {
                 socket.disconnect();
                 return;
             }
-            const userId = socket.handshake.query.userId;
+            let payload;
+            try {
+                payload = await this.authTokenService.verifyAccessToken(token);
+            }
+            catch (err) {
+                socket.disconnect();
+                return;
+            }
+            const userId = payload.sub;
             if (!userId) {
                 socket.disconnect();
                 return;
@@ -41,10 +51,13 @@ let ChatGateway = class ChatGateway {
             await this.socketSessionService.registerSocket(userId, socket.id);
             socket.join(`user:${userId}`);
             await this.replayMissedMessages(userId, socket);
-            this.server.emit('presence:update', {
-                userId,
-                status: 'online',
-                lastSeen: null,
+            const mutuals = await this.chatsService.getMutualContactIds(userId);
+            mutuals.forEach(contactId => {
+                this.server.to(`user:${contactId}`).emit('presence:update', {
+                    userId,
+                    status: 'online',
+                    lastSeen: null,
+                });
             });
         }
         catch (error) {
@@ -75,10 +88,13 @@ let ChatGateway = class ChatGateway {
             const sockets = await this.socketSessionService.getUserSockets(userId);
             if (sockets.length === 0) {
                 const presence = await this.presenceRepository.getUserPresence(userId);
-                this.server.emit('presence:update', {
-                    userId,
-                    status: 'offline',
-                    lastSeen: presence.lastSeen,
+                const mutuals = await this.chatsService.getMutualContactIds(userId);
+                mutuals.forEach(contactId => {
+                    this.server.to(`user:${contactId}`).emit('presence:update', {
+                        userId,
+                        status: 'offline',
+                        lastSeen: presence.lastSeen,
+                    });
                 });
             }
         }
@@ -133,15 +149,18 @@ let ChatGateway = class ChatGateway {
                     });
                 }
                 else {
-                    await this.notificationsService.sendPushNotification(recipientId, {
-                        title: message.sender.displayName,
-                        body: message.textContent || 'New message',
-                        data: {
-                            chatId: payload.chatId,
-                            messageId: message.id,
-                            type: 'message',
-                        },
-                    });
+                    const isMuted = await this.chatsService.isChatMuted(payload.chatId, recipientId);
+                    if (!isMuted) {
+                        await this.notificationsService.sendPushNotification(recipientId, {
+                            title: message.sender.displayName,
+                            body: message.textContent || 'New message',
+                            data: {
+                                chatId: payload.chatId,
+                                messageId: message.id,
+                                type: 'message',
+                            },
+                        });
+                    }
                 }
             }
         }
@@ -262,6 +281,7 @@ exports.ChatGateway = ChatGateway = __decorate([
         chats_service_1.ChatsService,
         messages_service_1.MessagesService,
         presence_repository_1.PresenceRepository,
-        notifications_service_1.NotificationsService])
+        notifications_service_1.NotificationsService,
+        auth_token_service_1.AuthTokenService])
 ], ChatGateway);
 //# sourceMappingURL=chat.gateway.js.map

@@ -5,6 +5,7 @@ import { ChatsService } from '../chats/chats.service';
 import { MessagesService } from '../messages/messages.service';
 import { PresenceRepository } from '../../redis/presence.repository';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AuthTokenService } from '../auth/auth-token.service';
 import { SendMessageDto, DeliveredDto, SeenDto } from '../messages/dto/message.dto';
 export declare class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private socketSessionService;
@@ -12,8 +13,9 @@ export declare class ChatGateway implements OnGatewayConnection, OnGatewayDiscon
     private messagesService;
     private presenceRepository;
     private notificationsService;
+    private authTokenService;
     server: Server;
-    constructor(socketSessionService: SocketSessionService, chatsService: ChatsService, messagesService: MessagesService, presenceRepository: PresenceRepository, notificationsService: NotificationsService);
+    constructor(socketSessionService: SocketSessionService, chatsService: ChatsService, messagesService: MessagesService, presenceRepository: PresenceRepository, notificationsService: NotificationsService, authTokenService: AuthTokenService);
     handleConnection(socket: Socket): Promise<void>;
     private replayMissedMessages;
     handleDisconnect(socket: Socket): Promise<void>;

@@ -20,12 +20,30 @@ let MessagesService = class MessagesService {
         this.messageQueue = messageQueue;
     }
     async createMessage(chatId, senderId, dto) {
-        const members = await this.prisma.chatMember.findMany({
-            where: {
-                chatId,
-                leftAt: null,
-            },
+        const chat = await this.prisma.chat.findUnique({
+            where: { id: chatId },
+            include: { members: { where: { leftAt: null } } }
         });
+        if (!chat) {
+            throw new common_1.NotFoundException('Chat not found');
+        }
+        if (chat.type === enums_1.ChatType.DIRECT) {
+            const recipient = chat.members.find(m => m.userId !== senderId);
+            if (recipient) {
+                const block = await this.prisma.userBlock.findFirst({
+                    where: {
+                        OR: [
+                            { blockerId: recipient.userId, blockedId: senderId },
+                            { blockerId: senderId, blockedId: recipient.userId }
+                        ]
+                    }
+                });
+                if (block) {
+                    throw new common_1.ForbiddenException('Cannot send messages to this contact');
+                }
+            }
+        }
+        const members = chat.members;
         const message = await this.prisma.$transaction(async (tx) => {
             const msg = await tx.message.create({
                 data: {
