@@ -11,6 +11,7 @@ import { ChatsService } from '../chats/chats.service';
 import { MessagesService } from '../messages/messages.service';
 import { PresenceRepository } from '../../redis/presence.repository';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AuthTokenService } from '../auth/auth-token.service';
 import { SendMessageDto, DeliveredDto, SeenDto } from '../messages/dto/message.dto';
 
 @WebSocketGateway({
@@ -27,6 +28,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private messagesService: MessagesService,
     private presenceRepository: PresenceRepository,
     private notificationsService: NotificationsService,
+    private authTokenService: AuthTokenService,
   ) {}
 
   async handleConnection(socket: Socket) {
@@ -37,7 +39,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return;
       }
 
-      const userId = socket.handshake.query.userId as string;
+      let payload;
+      try {
+        payload = await this.authTokenService.verifyAccessToken(token as string);
+      } catch (err) {
+        socket.disconnect();
+        return;
+      }
+
+      const userId = payload.sub;
       if (!userId) {
         socket.disconnect();
         return;
@@ -50,11 +60,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // Replay missed messages
       await this.replayMissedMessages(userId, socket);
 
-      // Broadcast online status
-      this.server.emit('presence:update', {
-        userId,
-        status: 'online',
-        lastSeen: null,
+      // Broadcast online status to mutual contacts
+      const mutuals = await this.chatsService.getMutualContactIds(userId);
+      mutuals.forEach(contactId => {
+        this.server.to(`user:${contactId}`).emit('presence:update', {
+          userId,
+          status: 'online',
+          lastSeen: null,
+        });
       });
     } catch (error) {
       console.error('Socket connection error:', error);
@@ -91,10 +104,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const sockets = await this.socketSessionService.getUserSockets(userId);
       if (sockets.length === 0) {
         const presence = await this.presenceRepository.getUserPresence(userId);
-        this.server.emit('presence:update', {
-          userId,
-          status: 'offline',
-          lastSeen: presence.lastSeen,
+        const mutuals = await this.chatsService.getMutualContactIds(userId);
+        mutuals.forEach(contactId => {
+          this.server.to(`user:${contactId}`).emit('presence:update', {
+            userId,
+            status: 'offline',
+            lastSeen: presence.lastSeen,
+          });
         });
       }
     }
@@ -170,15 +186,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           });
         } else {
           // Send visible push notification since user is offline
-          await this.notificationsService.sendPushNotification(recipientId, {
-            title: message.sender.displayName,
-            body: message.textContent || 'New message',
-            data: {
-              chatId: payload.chatId,
-              messageId: message.id,
-              type: 'message',
-            },
-          });
+          const isMuted = await this.chatsService.isChatMuted(payload.chatId, recipientId);
+          if (!isMuted) {
+            await this.notificationsService.sendPushNotification(recipientId, {
+              title: message.sender.displayName,
+              body: message.textContent || 'New message',
+              data: {
+                chatId: payload.chatId,
+                messageId: message.id,
+                type: 'message',
+              },
+            });
+          }
         }
       }
     } catch (error) {

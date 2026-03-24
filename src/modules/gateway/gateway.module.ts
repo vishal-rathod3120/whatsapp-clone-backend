@@ -7,8 +7,11 @@ import { ServerOptions } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { RedisService } from '../../redis/redis.service';
 
+import { AuthModule } from '../auth/auth.module';
+
 @Global()
 @Module({
+  imports: [AuthModule],
   providers: [ChatGateway, CallGateway, SocketSessionService],
   exports: [SocketSessionService],
 })

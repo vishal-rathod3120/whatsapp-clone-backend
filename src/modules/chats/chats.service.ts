@@ -263,4 +263,37 @@ export class ChatsService {
 
     return otherMember?.userId || null;
   }
+
+  async isChatMuted(chatId: string, userId: string): Promise<boolean> {
+    const member = await this.prisma.chatMember.findUnique({
+      where: {
+        chatId_userId: { chatId, userId }
+      },
+      select: { isMuted: true }
+    });
+    return member?.isMuted || false;
+  }
+
+  async getMutualContactIds(userId: string): Promise<string[]> {
+    const chats = await this.prisma.chatMember.findMany({
+      where: { userId, leftAt: null },
+      select: { chatId: true }
+    });
+    
+    if (chats.length === 0) return [];
+
+    const chatIds = chats.map(c => c.chatId);
+    
+    const mutuals = await this.prisma.chatMember.findMany({
+      where: { 
+        chatId: { in: chatIds }, 
+        userId: { not: userId }, 
+        leftAt: null 
+      },
+      select: { userId: true },
+      distinct: ['userId']
+    });
+
+    return mutuals.map(m => m.userId);
+  }
 }

@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SendMessageDto } from './dto/message.dto';
-import { MessageType, MessageStatus } from '../../common/enums';
+import { MessageType, MessageStatus, ChatType } from '../../common/enums';
 import { MessageQueueService } from '../../common/queue/message-queue.service';
 
 @Injectable()
@@ -12,13 +12,36 @@ export class MessagesService {
   ) {}
 
   async createMessage(chatId: string, senderId: string, dto: SendMessageDto) {
-    // Get chat members to create receipts
-    const members = await this.prisma.chatMember.findMany({
-      where: {
-        chatId,
-        leftAt: null,
-      },
+    // Fetch chat to verify block status and get members
+    const chat = await this.prisma.chat.findUnique({
+      where: { id: chatId },
+      include: { members: { where: { leftAt: null } } }
     });
+
+    if (!chat) {
+      throw new NotFoundException('Chat not found');
+    }
+
+    if (chat.type === ChatType.DIRECT) {
+      const recipient = chat.members.find(m => m.userId !== senderId);
+      if (recipient) {
+        // Enforce blocking logic
+        const block = await this.prisma.userBlock.findFirst({
+          where: {
+            OR: [
+              { blockerId: recipient.userId, blockedId: senderId },
+              { blockerId: senderId, blockedId: recipient.userId }
+            ]
+          }
+        });
+        
+        if (block) {
+          throw new ForbiddenException('Cannot send messages to this contact');
+        }
+      }
+    }
+
+    const members = chat.members;
 
     // Create message and update chat in transaction (fast operations)
     const message = await this.prisma.$transaction(async (tx) => {
