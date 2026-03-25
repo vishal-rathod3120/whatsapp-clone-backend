@@ -209,11 +209,18 @@ export function CallProvider({ children }: { children: ReactNode }) {
     };
 
     const onIncomingCall = (data: { callId: string; chatId: string; caller: any; type: 'AUDIO' | 'VIDEO' }) => {
-      console.log('Incoming call received:', data.callId);
+      console.log('Incoming call received:', data.callId, '| current state:', callStateRef.current);
       if (callStateRef.current !== 'idle') {
-        console.log('User is busy, rejecting incoming call automatically');
-        socketService.emit('call:reject', { callId: data.callId, reason: 'busy' });
-        return;
+        // If we have no peer connection and no stream, we're effectively idle despite stale ref
+        // Force reset to accept this call
+        if (!peerConnection.current && !localStreamRef.current) {
+          console.warn('State was non-idle but no active call found — force resetting to accept.');
+          callStateRef.current = 'idle';
+        } else {
+          console.log('User is genuinely busy, rejecting incoming call automatically');
+          socketService.emit('call:reject', { callId: data.callId, reason: 'busy' });
+          return;
+        }
       }
       
       const info: CallInfo = {
@@ -259,7 +266,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     };
 
     const onCallRejected = () => { console.log('Call rejected by remote'); cleanup(); };
-    const onCallEnded = () => { console.log('Call ended by remote'); cleanup(); };
+    const onCallEnded = (data: any) => { console.log('Call ended by remote', data); cleanup(); };
     const onCallTimeout = () => { console.log('Call timed out'); cleanup(); };
 
     const onOffer = async (data: { callId: string; sdp: string }) => {

@@ -25,15 +25,22 @@ export function CallOverlay() {
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
-    if (localVideoRef.current && localStream && callState === 'connected') {
+    if (localVideoRef.current && localStream && (callState === 'connected' || callState === 'outgoing')) {
       localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.play().catch(e => console.warn('Local play failed:', e));
     }
   }, [localStream, callState]);
 
   useEffect(() => {
     if (callState === 'connected' && remoteStream) {
-      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
-      if (remoteAudioRef.current) remoteAudioRef.current.srcObject = remoteStream;
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = remoteStream;
+        remoteVideoRef.current.play().catch(e => console.warn('Remote video play failed:', e));
+      }
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.srcObject = remoteStream;
+        remoteAudioRef.current.play().catch(e => console.warn('Remote audio play failed:', e));
+      }
     }
   }, [remoteStream, callState]);
 
@@ -93,7 +100,7 @@ export function CallOverlay() {
       </div>
 
       {/* Local Video (PiP) */}
-      {isVideo && localStream && callState === 'connected' && (
+      {isVideo && localStream && (callState === 'connected' || callState === 'outgoing') && (
         <div className="call-local-video-container">
           <video
             ref={localVideoRef}
