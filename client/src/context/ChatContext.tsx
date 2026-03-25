@@ -54,15 +54,23 @@ type ChatAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SENT_ACK'; payload: { clientTempId: string; message: Message } }
   | { type: 'DELETE_MESSAGE'; payload: { id: string; chatId: string; forEveryone: boolean } }
-  | { type: 'SET_ONLINE_USERS'; payload: string[] };
+  | { type: 'SET_ONLINE_USERS'; payload: string[] }
+  | { type: 'UPDATE_CHAT'; payload: Chat };
 
 function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
     case 'SET_CHATS':
       return { ...state, chats: action.payload, isLoadingChats: false };
     case 'ADD_CHAT':
-      // Add new chat to the beginning of the list
       return { ...state, chats: [action.payload, ...state.chats] };
+    case 'UPDATE_CHAT': {
+      const updated = action.payload;
+      return {
+        ...state,
+        chats: state.chats.map(c => c.id === updated.id ? { ...c, ...updated } : c),
+        activeChat: state.activeChat?.id === updated.id ? { ...state.activeChat, ...updated } : state.activeChat,
+      };
+    }
     case 'DELETE_CHAT': {
       const chatId = action.payload;
       const { [chatId]: _, ...remainingMessages } = state.messages;
@@ -275,6 +283,56 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const refreshChat = useCallback(async (chatId: string) => {
+    try {
+      const chat = await api.getChatById(chatId);
+      dispatch({ type: 'UPDATE_CHAT', payload: chat });
+      return chat;
+    } catch (err) {
+      console.error('Failed to refresh chat:', err);
+    }
+  }, []);
+
+  const addGroupMembers = useCallback(async (chatId: string, userIds: string[]) => {
+    try {
+      await api.addGroupMembers(chatId, userIds);
+      await refreshChat(chatId);
+    } catch (err) {
+      console.error('Failed to add members:', err);
+      throw err;
+    }
+  }, [refreshChat]);
+
+  const removeGroupMember = useCallback(async (chatId: string, userId: string) => {
+    try {
+      await api.removeGroupMember(chatId, userId);
+      await refreshChat(chatId);
+    } catch (err) {
+      console.error('Failed to remove member:', err);
+      throw err;
+    }
+  }, [refreshChat]);
+
+  const updateMemberRole = useCallback(async (chatId: string, userId: string, role: string) => {
+    try {
+      await api.updateMemberRole(chatId, userId, role);
+      await refreshChat(chatId);
+    } catch (err) {
+      console.error('Failed to update role:', err);
+      throw err;
+    }
+  }, [refreshChat]);
+
+  const updateGroupInfo = useCallback(async (chatId: string, data: { title?: string; avatarUrl?: string }) => {
+    try {
+      await api.updateGroupInfo(chatId, data);
+      await refreshChat(chatId);
+    } catch (err) {
+      console.error('Failed to update group info:', err);
+      throw err;
+    }
+  }, [refreshChat]);
+
   // Socket event listeners
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -329,7 +387,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [isAuthenticated]);
 
   return (
-    <ChatContext.Provider value={{ ...state, loadChats, selectChat, loadMessages, sendMessage, sendMediaMessage, deleteMessage, deleteGroup, createDirectChat, createGroupChat, dispatch }}>
+    <ChatContext.Provider value={{ ...state, loadChats, selectChat, loadMessages, sendMessage, sendMediaMessage, deleteMessage, deleteGroup, createDirectChat, createGroupChat, refreshChat, addGroupMembers, removeGroupMember, updateMemberRole, updateGroupInfo, dispatch }}>
       {children}
     </ChatContext.Provider>
   );

@@ -47,6 +47,8 @@ export declare class ChatsController {
                 displayName: string;
                 avatarUrl: string | null;
                 role: import(".prisma/client").$Enums.ChatMemberRole;
+                phoneNumber: string | null;
+                aboutText: string | null;
             }[];
         }[];
         nextCursor: string | null;
@@ -61,6 +63,8 @@ export declare class ChatsController {
             displayName: string;
             avatarUrl: string | null;
             role: import(".prisma/client").$Enums.ChatMemberRole;
+            phoneNumber: string | null;
+            aboutText: string | null;
         }[];
     }>;
     markChatAsRead(chatId: string, dto: MarkChatReadDto, user: JwtPayload): Promise<{

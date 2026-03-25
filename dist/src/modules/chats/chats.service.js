@@ -200,6 +200,7 @@ let ChatsService = class ChatsService {
                                 displayName: true,
                                 avatarUrl: true,
                                 phoneNumber: true,
+                                aboutText: true,
                             },
                         },
                     },
@@ -254,6 +255,8 @@ let ChatsService = class ChatsService {
                     displayName: m.user.displayName,
                     avatarUrl: m.user.avatarUrl,
                     role: m.role,
+                    phoneNumber: m.user.phoneNumber,
+                    aboutText: m.user.aboutText,
                 })),
             };
         }));
@@ -310,6 +313,8 @@ let ChatsService = class ChatsService {
                 displayName: m.user.displayName,
                 avatarUrl: m.user.avatarUrl,
                 role: m.role,
+                phoneNumber: m.user.phoneNumber,
+                aboutText: m.user.aboutText,
             })),
         };
     }

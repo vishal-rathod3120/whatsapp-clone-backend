@@ -219,6 +219,7 @@ export class ChatsService {
                 displayName: true,
                 avatarUrl: true,
                 phoneNumber: true,
+                aboutText: true,
               },
             },
           },
@@ -280,6 +281,8 @@ export class ChatsService {
             displayName: m.user.displayName,
             avatarUrl: m.user.avatarUrl,
             role: m.role,
+            phoneNumber: m.user.phoneNumber,
+            aboutText: m.user.aboutText,
           })),
         };
       }),
@@ -343,6 +346,8 @@ export class ChatsService {
         displayName: m.user.displayName,
         avatarUrl: m.user.avatarUrl,
         role: m.role,
+        phoneNumber: m.user.phoneNumber,
+        aboutText: m.user.aboutText,
       })),
     };
   }

@@ -6,6 +6,7 @@ import { api } from '../../services/api';
 import { socketService } from '../../services/socket';
 import { NewGroupModal } from '../../components/NewGroupModal';
 import { ProfilePanel } from '../../components/ProfilePanel';
+import { ContactInfoPanel } from '../../components/ContactInfoPanel';
 import './Chat.css';
 
 function formatTime(dateStr: string) {
@@ -243,8 +244,6 @@ function Conversation() {
     sendMediaMessage, 
     deleteMessage, 
     deleteGroup,
-    createDirectChat,
-    createGroupChat,
     typingUsers 
   } = useChat();
   const { user } = useAuth();
@@ -252,6 +251,7 @@ function Conversation() {
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const [showContactInfo, setShowContactInfo] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -332,12 +332,13 @@ function Conversation() {
   let lastDate = '';
 
   return (
+    <>
     <div className="conversation-panel">
       <div className="conv-header">
         <div className="chat-avatar" style={{ width: 40, height: 40, fontSize: 16 }}>
           {activeChat.avatarUrl ? <img src={activeChat.avatarUrl} alt="" /> : getInitials(activeChat.title)}
         </div>
-        <div className="conv-header-info">
+        <div className="conv-header-info" style={{ cursor: 'pointer' }} onClick={() => setShowContactInfo(!showContactInfo)}>
           <div className="conv-header-name">{activeChat.title || 'Unknown'}</div>
           <div className={`conv-header-status ${typingInChat.length > 0 ? 'typing' : ''}`}>
             {typingInChat.length > 0
@@ -354,7 +355,7 @@ function Conversation() {
             <div className="message-menu" style={{ top: '100%', right: 0, minWidth: 150 }}>
               {activeChat.type === 'GROUP' && (
                 <>
-                  <button onClick={() => { /* View Group Info */ setShowHeaderMenu(false); }}>Group Info</button>
+                  <button onClick={() => { setShowContactInfo(true); setShowHeaderMenu(false); }}>Group Info</button>
                   {activeChat.members.find((m: any) => m.userId === user?.id)?.role === 'OWNER' && (
                     <button 
                       style={{ color: '#ff2e74', position: 'relative', zIndex: 1000 }}
@@ -528,6 +529,16 @@ function Conversation() {
         </div>
       )}
     </div>
+
+    {/* Contact Info Panel - renders alongside conversation */}
+    {showContactInfo && activeChat && (
+      <ContactInfoPanel
+        chat={activeChat}
+        onClose={() => setShowContactInfo(false)}
+        onImageClick={(url) => setPreviewImageUrl(url)}
+      />
+    )}
+    </>
   );
 }
 

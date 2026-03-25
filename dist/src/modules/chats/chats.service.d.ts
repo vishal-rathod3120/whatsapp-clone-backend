@@ -102,6 +102,8 @@ export declare class ChatsService {
                 displayName: string;
                 avatarUrl: string | null;
                 role: import(".prisma/client").$Enums.ChatMemberRole;
+                phoneNumber: string | null;
+                aboutText: string | null;
             }[];
         }[];
         nextCursor: string | null;
@@ -116,6 +118,8 @@ export declare class ChatsService {
             displayName: string;
             avatarUrl: string | null;
             role: import(".prisma/client").$Enums.ChatMemberRole;
+            phoneNumber: string | null;
+            aboutText: string | null;
         }[];
     }>;
     markChatAsRead(chatId: string, userId: string, lastReadMessageId?: string): Promise<{

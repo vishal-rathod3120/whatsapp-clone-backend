@@ -173,6 +173,34 @@ class ApiService {
       method: 'DELETE',
     });
   }
+
+  // Group Management
+  async addGroupMembers(chatId: string, userIds: string[]) {
+    return this.request<any>(`/chats/${chatId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ userIds }),
+    });
+  }
+
+  async removeGroupMember(chatId: string, userId: string) {
+    return this.request<any>(`/chats/${chatId}/members/${userId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async updateMemberRole(chatId: string, userId: string, role: string) {
+    return this.request<any>(`/chats/${chatId}/members/${userId}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    });
+  }
+
+  async updateGroupInfo(chatId: string, data: { title?: string; avatarUrl?: string }) {
+    return this.request<any>(`/chats/${chatId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
 }
 
 export const api = new ApiService();
