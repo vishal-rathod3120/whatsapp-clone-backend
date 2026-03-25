@@ -162,12 +162,17 @@ interface ChatContextType extends ChatState {
   loadChats: () => Promise<void>;
   selectChat: (chat: Chat) => void;
   loadMessages: (chatId: string) => Promise<void>;
-  sendMessage: (chatId: string, text: string) => void;
+  sendMessage: (chatId: string, text: string, replyToMessageId?: string) => void;
   sendMediaMessage: (chatId: string, file: File, type: 'IMAGE' | 'VIDEO' | 'FILE') => Promise<void>;
   deleteMessage: (chatId: string, messageId: string, forEveryone: boolean) => Promise<void>;
   deleteGroup: (chatId: string) => Promise<void>;
   createDirectChat: (targetUserId: string) => Promise<void>;
   createGroupChat: (name: string, memberIds: string[]) => Promise<void>;
+  refreshChat: (chatId: string) => Promise<any>;
+  addGroupMembers: (chatId: string, userIds: string[]) => Promise<void>;
+  removeGroupMember: (chatId: string, userId: string) => Promise<void>;
+  updateMemberRole: (chatId: string, userId: string, role: string) => Promise<void>;
+  updateGroupInfo: (chatId: string, data: { title?: string; avatarUrl?: string }) => Promise<void>;
   dispatch: React.Dispatch<ChatAction>;
 }
 
@@ -203,7 +208,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const sendMessage = useCallback((chatId: string, text: string) => {
+  const sendMessage = useCallback((chatId: string, text: string, replyToMessageId?: string) => {
     const clientTempId = crypto.randomUUID();
     const optimistic: Message = {
       id: clientTempId,
@@ -216,7 +221,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       status: 'sending',
     };
     dispatch({ type: 'ADD_MESSAGE', payload: optimistic });
-    socketService.sendMessage(chatId, { clientTempId, type: 'TEXT', textContent: text });
+    socketService.sendMessage(chatId, { clientTempId, type: 'TEXT', textContent: text, replyToMessageId });
   }, []);
 
   const sendMediaMessage = useCallback(async (chatId: string, file: File, type: 'IMAGE' | 'VIDEO' | 'FILE') => {

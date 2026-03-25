@@ -7,6 +7,7 @@ import { socketService } from '../../services/socket';
 import { NewGroupModal } from '../../components/NewGroupModal';
 import { ProfilePanel } from '../../components/ProfilePanel';
 import { ContactInfoPanel } from '../../components/ContactInfoPanel';
+import { EmojiPicker } from '../../components/EmojiPicker';
 import './Chat.css';
 
 function formatTime(dateStr: string) {
@@ -238,6 +239,7 @@ function ChatListItem({ chat, isActive, onClick }: { chat: any; isActive: boolea
 function Conversation() {
   const { 
     activeChat, 
+    chats,
     messages, 
     loadMessages, 
     sendMessage, 
@@ -252,11 +254,24 @@ function Conversation() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [showContactInfo, setShowContactInfo] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<any>(null);
+  const [forwardingMsg, setForwardingMsg] = useState<any>(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const inputRef = useRef<HTMLInputElement>(null);
   const chatMessages = activeChat ? (messages[activeChat.id] || []) : [];
   const typingInChat = activeChat ? (typingUsers[activeChat.id] || []) : [];
+  
+  // Filtered messages for search
+  const filteredMessages = searchQuery.trim()
+    ? chatMessages.filter((msg: any) => 
+        msg.textContent?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : chatMessages;
 
   useEffect(() => {
     if (activeChat) loadMessages(activeChat.id);
@@ -268,8 +283,9 @@ function Conversation() {
 
   const handleSend = () => {
     if (!input.trim() || !activeChat) return;
-    sendMessage(activeChat.id, input.trim());
+    sendMessage(activeChat.id, input.trim(), replyingTo?.id);
     setInput('');
+    setReplyingTo(null);
     socketService.stopTyping(activeChat.id);
   };
 
@@ -393,17 +409,40 @@ function Conversation() {
             </div>
           )}
         </div>
+
+        {/* Search button in header */}
+        <button className="icon-btn" style={{ marginLeft: 'auto', marginRight: 8 }} onClick={() => setShowSearch(!showSearch)}>
+          🔍
+        </button>
       </div>
 
+      {/* Search Bar */}
+      {showSearch && (
+        <div className="message-search-bar">
+          <input
+            autoFocus
+            type="text"
+            placeholder="Search messages..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="message-search-input"
+          />
+          <span className="message-search-count">
+            {searchQuery.trim() ? `${filteredMessages.length} found` : ''}
+          </span>
+          <button onClick={() => { setShowSearch(false); setSearchQuery(''); }}>✕</button>
+        </div>
+      )}
+
       <div className="messages-area">
-        {chatMessages.map((msg, i) => {
+        {filteredMessages.map((msg, i) => {
           const msgDate = formatDate(msg.createdAt);
           const showDate = msgDate !== lastDate;
           lastDate = msgDate;
           const isSent = msg.senderId === user?.id || msg.senderId === 'me';
 
           return (
-            <div key={msg.id || msg.clientTempId || i}>
+            <div key={msg.id || msg.clientTempId || i} id={`msg-${msg.id}`}>
               {showDate && (
                 <div className="date-separator">
                   <span>{msgDate}</span>
@@ -415,6 +454,28 @@ function Conversation() {
                     <span className="message-deleted">🚫 This message was deleted</span>
                   ) : (
                     <>
+                      {/* Reply Preview */}
+                      {(msg as any).replyToMessage && (
+                        <div
+                          className="message-reply-preview"
+                          onClick={() => {
+                            const el = document.getElementById(`msg-${(msg as any).replyToMessage.id}`);
+                            if (el) {
+                              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              el.classList.add('highlight-msg');
+                              setTimeout(() => el.classList.remove('highlight-msg'), 1500);
+                            }
+                          }}
+                        >
+                          <div className="reply-preview-sender">
+                            {(msg as any).replyToMessage.sender?.displayName || 'You'}
+                          </div>
+                          <div className="reply-preview-text">
+                            {(msg as any).replyToMessage.type === 'IMAGE' ? '📷 Photo' : 
+                             (msg as any).replyToMessage.textContent || 'Message'}
+                          </div>
+                        </div>
+                      )}
                       {/* Media Rendering */}
                       {(msg.type === 'IMAGE' || (msg as any).attachment?.mimeType?.startsWith('image/')) && (() => {
                         const imgSrc = msg.attachmentUrl || 
@@ -453,6 +514,12 @@ function Conversation() {
                         </button>
                         {openMenuId === msg.id && (
                           <div className="message-menu">
+                            <button onClick={() => { setReplyingTo(msg); setOpenMenuId(null); setTimeout(() => inputRef.current?.focus(), 100); }}>
+                              ↩️ Reply
+                            </button>
+                            <button onClick={() => { setForwardingMsg(msg); setOpenMenuId(null); }}>
+                              ↗️ Forward
+                            </button>
                             <button 
                               disabled={msg.status === 'sending'}
                               onClick={() => { if (msg.status !== 'sending') { deleteMessage(activeChat!.id, msg.id, false); setOpenMenuId(null); } }}
@@ -494,29 +561,55 @@ function Conversation() {
       </div>
 
       <div className="message-input-area">
-        <button className="icon-btn">😀</button>
-        <button className="icon-btn" onClick={handleAttachmentClick}>📎</button>
-        
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          style={{ display: 'none' }} 
-          accept="image/*,video/*"
-          onChange={handleFileChange}
-        />
-
-        <div className="message-input-box">
-          <input
-            type="text"
-            placeholder="Type a message"
-            value={input}
-            onChange={e => handleInputChange(e.target.value)}
-            onKeyDown={handleKeyDown}
+        {/* Reply Preview Bar */}
+        {replyingTo && (
+          <div className="reply-bar">
+            <div className="reply-bar-content">
+              <div className="reply-bar-sender">
+                {replyingTo.sender?.displayName || (replyingTo.senderId === 'me' || replyingTo.senderId === user?.id ? 'You' : 'Unknown')}
+              </div>
+              <div className="reply-bar-text">
+                {replyingTo.type === 'IMAGE' ? '📷 Photo' : replyingTo.textContent || 'Message'}
+              </div>
+            </div>
+            <button className="reply-bar-close" onClick={() => setReplyingTo(null)}>✕</button>
+          </div>
+        )}
+        <div className="message-input-row" style={{ position: 'relative' }}>
+          {showEmojiPicker && (
+            <EmojiPicker
+              onSelect={(emoji) => {
+                setInput(prev => prev + emoji);
+                inputRef.current?.focus();
+              }}
+              onClose={() => setShowEmojiPicker(false)}
+            />
+          )}
+          <button className="icon-btn" onClick={() => setShowEmojiPicker(!showEmojiPicker)}>😀</button>
+          <button className="icon-btn" onClick={handleAttachmentClick}>📎</button>
+          
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            style={{ display: 'none' }} 
+            accept="image/*,video/*"
+            onChange={handleFileChange}
           />
+
+          <div className="message-input-box">
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Type a message"
+              value={input}
+              onChange={e => handleInputChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+          </div>
+          <button className="send-btn" onClick={handleSend}>
+            ➤
+          </button>
         </div>
-        <button className="send-btn" onClick={handleSend}>
-          ➤
-        </button>
       </div>
 
       {/* Lightbox */}
@@ -525,6 +618,36 @@ function Conversation() {
           <div className="lightbox-content" onClick={e => e.stopPropagation()}>
             <img src={previewImageUrl} alt="Preview" />
             <button className="lightbox-close" onClick={() => setPreviewImageUrl(null)}>✕</button>
+          </div>
+        </div>
+      )}
+
+      {/* Forward Modal */}
+      {forwardingMsg && (
+        <div className="forward-modal-overlay" onClick={() => setForwardingMsg(null)}>
+          <div className="forward-modal" onClick={e => e.stopPropagation()}>
+            <div className="forward-modal-header">
+              <h3>Forward message to</h3>
+              <button onClick={() => setForwardingMsg(null)}>✕</button>
+            </div>
+            <div className="forward-modal-list">
+              {chats.filter((c: any) => c.id !== activeChat?.id).map((c: any) => (
+                <div 
+                  key={c.id} 
+                  className="forward-modal-item"
+                  onClick={async () => {
+                    const text = forwardingMsg.textContent ? `↗️ Forwarded: ${forwardingMsg.textContent}` : '↗️ Forwarded message';
+                    sendMessage(c.id, text);
+                    setForwardingMsg(null);
+                  }}
+                >
+                  <div className="chat-avatar" style={{ width: 40, height: 40, fontSize: 14 }}>
+                    {c.avatarUrl ? <img src={c.avatarUrl} alt="" /> : getInitials(c.title)}
+                  </div>
+                  <span>{c.title || 'Chat'}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
