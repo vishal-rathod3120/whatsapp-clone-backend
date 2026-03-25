@@ -8,6 +8,7 @@ export declare class MediaService {
     constructor(prisma: PrismaService, configService: ConfigService, storage: StorageInterface);
     createAttachment(uploaderId: string, file: Express.Multer.File, storageKey: string): Promise<{
         id: string;
+        createdAt: Date;
         storageKey: string;
         originalName: string | null;
         mimeType: string;
@@ -16,11 +17,11 @@ export declare class MediaService {
         height: number | null;
         durationSeconds: number | null;
         thumbnailKey: string | null;
-        createdAt: Date;
         uploaderId: string;
     }>;
     getAttachmentById(id: string): Promise<{
         id: string;
+        createdAt: Date;
         storageKey: string;
         originalName: string | null;
         mimeType: string;
@@ -29,7 +30,6 @@ export declare class MediaService {
         height: number | null;
         durationSeconds: number | null;
         thumbnailKey: string | null;
-        createdAt: Date;
         uploaderId: string;
     } | null>;
     private getFileMetadata;

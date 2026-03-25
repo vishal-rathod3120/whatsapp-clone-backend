@@ -9,24 +9,24 @@ export declare class ChatsService {
     createDirectChat(userId: string, dto: CreateDirectChatDto): Promise<{
         members: {
             id: string;
-            userId: string;
             role: import(".prisma/client").$Enums.ChatMemberRole;
             joinedAt: Date;
             leftAt: Date | null;
             isMuted: boolean;
             lastReadMessageId: string | null;
+            userId: string;
             chatId: string;
         }[];
     } & {
         id: string;
+        avatarUrl: string | null;
+        createdAt: Date;
+        updatedAt: Date;
         type: import(".prisma/client").$Enums.ChatType;
         title: string | null;
-        avatarUrl: string | null;
         createdById: string;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     createGroupChat(userId: string, dto: {
         title: string;
@@ -36,29 +36,29 @@ export declare class ChatsService {
         members: ({
             user: {
                 id: string;
-                avatarUrl: string | null;
                 displayName: string;
+                avatarUrl: string | null;
             };
         } & {
             id: string;
-            userId: string;
             role: import(".prisma/client").$Enums.ChatMemberRole;
             joinedAt: Date;
             leftAt: Date | null;
             isMuted: boolean;
             lastReadMessageId: string | null;
+            userId: string;
             chatId: string;
         })[];
     } & {
         id: string;
+        avatarUrl: string | null;
+        createdAt: Date;
+        updatedAt: Date;
         type: import(".prisma/client").$Enums.ChatType;
         title: string | null;
-        avatarUrl: string | null;
         createdById: string;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     addGroupMembers(chatId: string, requesterId: string, userIds: string[]): Promise<{
         success: boolean;
@@ -72,14 +72,14 @@ export declare class ChatsService {
     }>;
     updateGroupInfo(chatId: string, requesterId: string, title?: string, avatarUrl?: string): Promise<{
         id: string;
+        avatarUrl: string | null;
+        createdAt: Date;
+        updatedAt: Date;
         type: import(".prisma/client").$Enums.ChatType;
         title: string | null;
-        avatarUrl: string | null;
         createdById: string;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     getChatList(userId: string, limit?: number, cursor?: string): Promise<{
         items: {
@@ -89,11 +89,11 @@ export declare class ChatsService {
             avatarUrl: string | null | undefined;
             lastMessage: {
                 id: string;
-                type: import(".prisma/client").$Enums.MessageType;
                 createdAt: Date;
-                senderId: string;
+                type: import(".prisma/client").$Enums.MessageType;
                 textContent: string | null;
                 status: import(".prisma/client").$Enums.MessageStatus;
+                senderId: string;
             };
             unreadCount: number;
             lastMessageAt: Date | null;

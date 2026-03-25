@@ -157,6 +157,8 @@ model Message {
   chat             Chat             @relation(fields: [chatId], references: [id], onDelete: Cascade)
   sender           User             @relation("MessageSender", fields: [senderId], references: [id], onDelete: Restrict)
   attachment       Attachment?      @relation(fields: [attachmentId], references: [id], onDelete: SetNull)
+  replyToMessage   Message?         @relation("MessageReplies", fields: [replyToMessageId], references: [id], onDelete: SetNull)
+  replies          Message[]        @relation("MessageReplies")
   receipts         MessageReceipt[]
   deletedByUsers   DeletedMessage[]
 

@@ -118,6 +118,15 @@ let MessagesService = class MessagesService {
                     },
                 },
                 attachment: true,
+                replyToMessage: {
+                    select: {
+                        id: true,
+                        textContent: true,
+                        type: true,
+                        senderId: true,
+                        sender: { select: { displayName: true } },
+                    },
+                },
                 receipts: {
                     select: {
                         userId: true,
@@ -164,6 +173,15 @@ let MessagesService = class MessagesService {
                     },
                 },
                 attachment: true,
+                replyToMessage: {
+                    select: {
+                        id: true,
+                        textContent: true,
+                        type: true,
+                        senderId: true,
+                        sender: { select: { displayName: true } },
+                    },
+                },
                 receipts: {
                     where: {
                         userId: { not: userId },
