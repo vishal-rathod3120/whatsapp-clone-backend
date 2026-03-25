@@ -141,6 +141,7 @@ let ChatGateway = class ChatGateway {
                     const senderSockets = await this.socketSessionService.getUserSockets(userId);
                     senderSockets.forEach((socketId) => {
                         this.server.to(socketId).emit('chat:delivered:update', {
+                            chatId: payload.chatId,
                             messageId: message.id,
                             userId: recipientId,
                             deliveredAt: new Date(),
@@ -182,6 +183,7 @@ let ChatGateway = class ChatGateway {
             if (updated) {
                 const message = await this.messagesService.getMessageById(payload.messageId);
                 this.server.to(`user:${message.senderId}`).emit('chat:delivered:update', {
+                    chatId: message.chatId,
                     messageId: payload.messageId,
                     userId,
                     deliveredAt: new Date(),
@@ -240,6 +242,18 @@ let ChatGateway = class ChatGateway {
             });
         }
     }
+    async handleEditMessage(socket, payload) {
+        try {
+            const userId = this.socketSessionService.getUserIdBySocket(socket.id);
+            if (!userId)
+                return;
+            await this.messagesService.editMessage(payload.chatId, payload.messageId, userId, payload.textContent);
+        }
+        catch (error) {
+            console.error('Edit message error:', error);
+            socket.emit('chat:error', { message: 'Failed to edit message' });
+        }
+    }
 };
 exports.ChatGateway = ChatGateway;
 __decorate([
@@ -276,6 +290,12 @@ __decorate([
     __metadata("design:paramtypes", [socket_io_1.Socket, Object]),
     __metadata("design:returntype", Promise)
 ], ChatGateway.prototype, "handleTypingStop", null);
+__decorate([
+    (0, websockets_1.SubscribeMessage)('chat:edit'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [socket_io_1.Socket, Object]),
+    __metadata("design:returntype", Promise)
+], ChatGateway.prototype, "handleEditMessage", null);
 exports.ChatGateway = ChatGateway = __decorate([
     (0, websockets_1.WebSocketGateway)({
         cors: { origin: '*' },

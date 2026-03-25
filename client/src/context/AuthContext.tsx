@@ -59,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .then(user => {
           dispatch({ type: 'SET_USER', payload: user });
           socketService.connect(token);
+          socketService.registerPushNotifications();
         })
         .catch(() => dispatch({ type: 'LOGOUT' }));
     } else {
@@ -70,12 +71,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await api.login(phone, password);
     dispatch({ type: 'SET_USER', payload: data.user });
     socketService.connect(data.accessToken);
+    socketService.registerPushNotifications();
   }, []);
 
   const register = useCallback(async (name: string, phone: string, password: string) => {
     const data = await api.register(name, phone, password);
     dispatch({ type: 'SET_USER', payload: data.user });
     socketService.connect(data.accessToken);
+    socketService.registerPushNotifications();
   }, []);
 
   const logout = useCallback(async () => {

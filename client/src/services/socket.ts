@@ -67,6 +67,49 @@ class SocketService {
     this.emit('chat:typing:stop', { chatId });
   }
 
+  editMessage(chatId: string, messageId: string, textContent: string) {
+    this.emit('chat:edit', { chatId, messageId, textContent });
+  }
+
+  async registerPushNotifications() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      console.warn('Push notifications not supported');
+      return;
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      console.log('Service Worker registered');
+
+      let subscription = await registration.pushManager.getSubscription();
+      
+      if (!subscription) {
+        // We'll need the VAPID public key from the backend later
+        // For now, we'll try to fetch it or use a placeholder if not available
+        const response = await fetch('/api/v1/push/vapid-public-key');
+        const { publicKey } = await response.json();
+
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: publicKey
+        });
+      }
+
+      // Send subscription to backend
+      await fetch('/api/v1/push/subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        },
+        body: JSON.stringify(subscription)
+      });
+      console.log('Push subscription saved to backend');
+    } catch (err) {
+      console.error('Failed to register push notifications:', err);
+    }
+  }
+
   get isConnected() {
     return this.socket?.connected ?? false;
   }

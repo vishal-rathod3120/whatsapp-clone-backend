@@ -17,6 +17,7 @@ const prisma_service_1 = require("../../prisma/prisma.service");
 const fcm_provider_1 = require("./providers/fcm.provider");
 const apns_provider_1 = require("./providers/apns.provider");
 const admin = require("firebase-admin");
+const webPush = require("web-push");
 let NotificationsService = NotificationsService_1 = class NotificationsService {
     constructor(prisma, configService, fcmProvider, apnsProvider) {
         this.prisma = prisma;
@@ -34,6 +35,16 @@ let NotificationsService = NotificationsService_1 = class NotificationsService {
             catch (error) {
                 this.logger.warn(`Failed to initialize Firebase Admin: ${error.message}. Push notifications will be mocked.`);
             }
+        }
+        const vapidPublic = this.configService.get('VAPID_PUBLIC_KEY');
+        const vapidPrivate = this.configService.get('VAPID_PRIVATE_KEY');
+        const vapidEmail = this.configService.get('VAPID_EMAIL', 'mailto:example@yourdomain.com');
+        if (vapidPublic && vapidPrivate) {
+            webPush.setVapidDetails(vapidEmail, vapidPublic, vapidPrivate);
+            this.logger.log('Web Push (VAPID) initialized');
+        }
+        else {
+            this.logger.warn('VAPID keys missing. Web Push will be mocked.');
         }
     }
     async sendPushNotification(userId, payload) {
@@ -54,7 +65,7 @@ let NotificationsService = NotificationsService_1 = class NotificationsService {
             where: {
                 userId,
                 pushToken: { not: null },
-                deviceType: { in: ['ANDROID', 'IOS'] },
+                deviceType: { in: ['ANDROID', 'IOS', 'WEB'] },
             },
         });
         for (const device of devices) {
@@ -64,6 +75,21 @@ let NotificationsService = NotificationsService_1 = class NotificationsService {
         }
     }
     async sendSilentToDevice(token, data, deviceType) {
+        if (deviceType === 'WEB') {
+            try {
+                const sub = JSON.parse(token);
+                await webPush.sendNotification(sub, JSON.stringify({
+                    title: 'New Message',
+                    body: 'You have a new message',
+                    data,
+                    silent: true
+                }));
+            }
+            catch (err) {
+                this.logger.error(`Failed to send Web Push silent: ${err.message}`);
+            }
+            return;
+        }
         if (!admin.apps.length) {
             this.logger.debug(`[Mock SILENT Push] to ${token}`);
             return;
@@ -76,6 +102,17 @@ let NotificationsService = NotificationsService_1 = class NotificationsService {
         }
     }
     async sendToDevice(token, payload, deviceType) {
+        if (deviceType === 'WEB') {
+            try {
+                const sub = JSON.parse(token);
+                await webPush.sendNotification(sub, JSON.stringify(payload));
+                this.logger.log(`Web Push sent successfully`);
+            }
+            catch (err) {
+                this.logger.error(`Web Push failed: ${err.message}`);
+            }
+            return;
+        }
         if (!admin.apps.length) {
             this.logger.debug(`[Mock Push] to ${token}: ${payload.title}`);
             return;
@@ -85,9 +122,6 @@ let NotificationsService = NotificationsService_1 = class NotificationsService {
         }
         else if (deviceType === 'IOS') {
             await this.apnsProvider.sendPushNotification(token, payload.title, payload.body, payload.data);
-        }
-        else if (deviceType === 'WEB') {
-            this.logger.debug(`Sending Web Push to ${token}`);
         }
     }
 };

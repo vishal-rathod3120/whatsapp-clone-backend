@@ -69,9 +69,9 @@ async function bootstrap() {
   SwaggerModule.setup('docs', app, document);
 
   const port = process.env.PORT || 3000;
-  await app.listen(port);
-  console.log(`Application running on: http://localhost:${port}`);
-  console.log(`API docs available at: http://localhost:${port}/docs`);
+  await app.listen(port, '0.0.0.0');
+  console.log(`Application running on: http://0.0.0.0:${port}`);
+  console.log(`API docs available at: http://0.0.0.0:${port}/docs`);
   } catch (err: any) {
     console.error('FATAL BOOTSTRAP ERROR:', err);
     require('fs').writeFileSync('fatal.log', err.stack || err.toString());

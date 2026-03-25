@@ -261,6 +261,8 @@ function Conversation() {
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [editingMsg, setEditingMsg] = useState<any>(null);
+  const [editInput, setEditInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -291,10 +293,23 @@ function Conversation() {
     socketService.stopTyping(activeChat.id);
   };
 
+  const handleEdit = () => {
+    if (!editInput.trim() || !activeChat || !editingMsg) return;
+    socketService.editMessage(activeChat.id, editingMsg.id, editInput.trim());
+    setEditingMsg(null);
+    setEditInput('');
+  };
+
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      if (editingMsg) {
+        handleEdit();
+      } else {
+        handleSend();
+      }
+    } else if (e.key === 'Escape' && editingMsg) {
+      setEditingMsg(null);
     }
   };
 
@@ -522,13 +537,34 @@ function Conversation() {
                          ) : null;
                       })()}
 
-                      {msg.textContent && <span className="message-text">{msg.textContent}</span>}
+                      {msg.textContent && (
+                        editingMsg?.id === msg.id ? (
+                          <div className="message-edit-container">
+                            <input
+                              autoFocus
+                              type="text"
+                              value={editInput}
+                              onChange={(e) => setEditInput(e.target.value)}
+                              onKeyDown={handleKeyDown}
+                              className="message-edit-input"
+                            />
+                            <div className="message-edit-actions">
+                              <button onClick={() => setEditingMsg(null)}>✕</button>
+                              <button onClick={handleEdit}>✓</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="message-text">{msg.textContent}</span>
+                        )
+                      )}
                       <span className="message-meta">
                         {msg.editedAt && <span className="message-edited">edited</span>}
                         <span className="message-time">{formatTime(msg.createdAt)}</span>
                          {isSent && (
                           <span className={`message-status ${msg.status || 'sent'}`}>
-                            {msg.status === 'sending' ? '🕐' : msg.status === 'read' ? '✓✓' : '✓'}
+                            {msg.status === 'sending' ? '🕐' : 
+                             msg.status === 'read' ? '✓✓' : 
+                             msg.status === 'delivered' ? '✓✓' : '✓'}
                           </span>
                         )}
                         <button 
@@ -548,6 +584,11 @@ function Conversation() {
                             <button onClick={() => { setForwardingMsg(msg); setOpenMenuId(null); }}>
                               ↗️ Forward
                             </button>
+                            {isSent && !msg.isDeleted && msg.type === 'TEXT' && (
+                              <button onClick={() => { setEditingMsg(msg); setEditInput(msg.textContent || ''); setOpenMenuId(null); }}>
+                                ✏️ Edit
+                              </button>
+                            )}
                             <button 
                               disabled={msg.status === 'sending'}
                               onClick={() => { if (msg.status !== 'sending') { deleteMessage(activeChat!.id, msg.id, false); setOpenMenuId(null); } }}

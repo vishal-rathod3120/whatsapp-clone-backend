@@ -30,4 +30,9 @@ export declare class ChatGateway implements OnGatewayConnection, OnGatewayDiscon
     handleTypingStop(socket: Socket, payload: {
         chatId: string;
     }): Promise<void>;
+    handleEditMessage(socket: Socket, payload: {
+        chatId: string;
+        messageId: string;
+        textContent: string;
+    }): Promise<void>;
 }

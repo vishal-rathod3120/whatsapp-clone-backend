@@ -175,6 +175,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           const senderSockets = await this.socketSessionService.getUserSockets(userId);
           senderSockets.forEach((socketId) => {
             this.server.to(socketId).emit('chat:delivered:update', {
+              chatId: payload.chatId,
               messageId: message.id,
               userId: recipientId,
               deliveredAt: new Date(),
@@ -223,6 +224,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         
         // Notify sender
         this.server.to(`user:${message.senderId}`).emit('chat:delivered:update', {
+          chatId: message.chatId,
           messageId: payload.messageId,
           userId,
           deliveredAt: new Date(),
@@ -291,6 +293,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         userId,
         isTyping: false,
       });
+    }
+  }
+
+  @SubscribeMessage('chat:edit')
+  async handleEditMessage(socket: Socket, payload: { chatId: string; messageId: string; textContent: string }) {
+    try {
+      const userId = this.socketSessionService.getUserIdBySocket(socket.id);
+      if (!userId) return;
+
+      await this.messagesService.editMessage(payload.chatId, payload.messageId, userId, payload.textContent);
+    } catch (error) {
+      console.error('Edit message error:', error);
+      socket.emit('chat:error', { message: 'Failed to edit message' });
     }
   }
 }

@@ -648,6 +648,57 @@
   color: #f15c5c;
 }
 
+/* ===== MESSAGE EDIT UI ===== */
+.message-edit-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 200px;
+}
+
+.message-edit-input {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  border: 1px solid var(--accent);
+  color: var(--text-primary);
+  font-size: 14.2px;
+  outline: none;
+}
+
+.message-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.message-edit-actions button {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  background: var(--bg-panel);
+  font-size: 14px;
+}
+
+.message-edit-actions button:hover {
+  background: var(--bg-hover);
+}
+
+.message-edit-actions button:last-child {
+  background: var(--accent);
+  color: white;
+}
+
+.message-edit-actions button:last-child:hover {
+  background: var(--accent-hover);
+}
+
 /* ===== REPLY PREVIEW IN MESSAGE BUBBLE ===== */
 .message-reply-preview {
   background: rgba(0, 128, 105, 0.08);

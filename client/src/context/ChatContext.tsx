@@ -61,6 +61,7 @@ type ChatAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SENT_ACK'; payload: { clientTempId: string; message: Message } }
   | { type: 'DELETE_MESSAGE'; payload: { id: string; chatId: string; forEveryone: boolean } }
+  | { type: 'UPDATE_MESSAGE_STATUS'; payload: { messageId: string; chatId: string; status: 'delivered' | 'read' } }
   | { type: 'SET_ONLINE_USERS'; payload: string[] }
   | { type: 'UPDATE_CHAT'; payload: Chat };
 
@@ -112,7 +113,7 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       const { clientTempId, message } = action.payload;
       const chatId = message.chatId;
       const msgs = (state.messages[chatId] || []).map(m =>
-        m.clientTempId === clientTempId ? { ...message, clientTempId: undefined } : m
+        m.clientTempId === clientTempId ? { ...message, status: 'sent', clientTempId: undefined } : m
       );
       return { ...state, messages: { ...state.messages, [chatId]: msgs } };
     }
@@ -148,6 +149,13 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
         const msgs = (state.messages[chatId] || []).filter(m => m.id !== id);
         return { ...state, messages: { ...state.messages, [chatId]: msgs } };
       }
+    }
+    case 'UPDATE_MESSAGE_STATUS': {
+      const { messageId, chatId, status } = action.payload;
+      const msgs = (state.messages[chatId] || []).map(m =>
+        m.id === messageId ? { ...m, status } : m
+      );
+      return { ...state, messages: { ...state.messages, [chatId]: msgs } };
     }
     case 'SET_ONLINE_USERS':
       return { ...state, onlineUsers: action.payload };
@@ -187,7 +195,7 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 export function ChatProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(chatReducer, initialState);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   const loadChats = useCallback(async () => {
     dispatch({ type: 'SET_LOADING', payload: true });
@@ -209,7 +217,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const loadMessages = useCallback(async (chatId: string) => {
     try {
       const data = await api.getMessages(chatId);
-      dispatch({ type: 'SET_MESSAGES', payload: { chatId, messages: (data.items || data).reverse() } });
+      const messages = (data.items || data).map((m: any) => {
+        let status = m.status;
+        if (m.receipts && m.receipts.length > 0) {
+          if (m.receipts.some((r: any) => r.seenAt)) status = 'read';
+          else if (m.receipts.some((r: any) => r.deliveredAt)) status = 'delivered';
+        }
+        return { ...m, status };
+      });
+      dispatch({ type: 'SET_MESSAGES', payload: { chatId, messages: messages.reverse() } });
     } catch (err) {
       console.error('Failed to load messages:', err);
     }
@@ -378,6 +394,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_ONLINE_USERS', payload: userIds });
     };
 
+    const onDeliveredUpdate = (data: { messageId: string; chatId: string; deliveredAt: string }) => {
+      dispatch({ type: 'UPDATE_MESSAGE_STATUS', payload: { messageId: data.messageId, chatId: data.chatId, status: 'delivered' } });
+    };
+
+    const onSeenUpdate = (data: { messageId: string; chatId: string; seenBy: string; seenAt: string }) => {
+      dispatch({ type: 'UPDATE_MESSAGE_STATUS', payload: { messageId: data.messageId, chatId: data.chatId, status: 'read' } });
+    };
+
     socketService.on('chat:new', onNewMessage);
     socketService.on('chat:sent-ack', onSentAck);
     socketService.on('chat:typing:update', onTyping);
@@ -385,7 +409,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     socketService.on('message:edited', onMessageEdited);
     socketService.on('chat:deleted', onChatDeleted);
     socketService.on('user:online', onUserOnline);
-
+    socketService.on('chat:delivered:update', onDeliveredUpdate);
+    socketService.on('chat:seen:update', onSeenUpdate);
 
     return () => {
       socketService.off('chat:new', onNewMessage);
@@ -395,8 +420,22 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       socketService.off('message:edited', onMessageEdited);
       socketService.off('chat:deleted', onChatDeleted);
       socketService.off('user:online', onUserOnline);
+      socketService.off('chat:delivered:update', onDeliveredUpdate);
+      socketService.off('chat:seen:update', onSeenUpdate);
     };
   }, [isAuthenticated]);
+
+  // Auto-mark as seen when chat is active
+  useEffect(() => {
+    if (state.activeChat && state.messages[state.activeChat.id]) {
+      const unseen = state.messages[state.activeChat.id].filter(
+        m => m.senderId !== user?.id && m.status !== 'read'
+      );
+      unseen.forEach(m => {
+        socketService.markSeen(state.activeChat!.id, m.id);
+      });
+    }
+  }, [state.activeChat?.id, state.messages[state.activeChat?.id || '']?.length, user?.id]);
 
   return (
     <ChatContext.Provider value={{ ...state, loadChats, selectChat, loadMessages, sendMessage, sendMediaMessage, deleteMessage, deleteGroup, createDirectChat, createGroupChat, refreshChat, addGroupMembers, removeGroupMember, updateMemberRole, updateGroupInfo, dispatch }}>
