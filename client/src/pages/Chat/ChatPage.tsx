@@ -8,6 +8,7 @@ import { NewGroupModal } from '../../components/NewGroupModal';
 import { ProfilePanel } from '../../components/ProfilePanel';
 import { ContactInfoPanel } from '../../components/ContactInfoPanel';
 import { EmojiPicker } from '../../components/EmojiPicker';
+import { useCall } from '../../context/CallContext';
 import './Chat.css';
 
 function formatTime(dateStr: string) {
@@ -249,6 +250,7 @@ function Conversation() {
     typingUsers 
   } = useChat();
   const { user } = useAuth();
+  const { initiateCall } = useCall();
   const [input, setInput] = useState('');
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -409,6 +411,32 @@ function Conversation() {
             </div>
           )}
         </div>
+
+        {/* Call buttons (direct chats only) */}
+        {activeChat.type === 'DIRECT' && (
+          <>
+            <button
+              className="icon-btn"
+              title="Voice call"
+              onClick={() => {
+                const other = activeChat.members?.find((m: any) => m.userId !== user?.id);
+                initiateCall(activeChat.id, 'AUDIO', other?.displayName || activeChat.title || 'Unknown', other?.avatarUrl || activeChat.avatarUrl);
+              }}
+            >
+              📞
+            </button>
+            <button
+              className="icon-btn"
+              title="Video call"
+              onClick={() => {
+                const other = activeChat.members?.find((m: any) => m.userId !== user?.id);
+                initiateCall(activeChat.id, 'VIDEO', other?.displayName || activeChat.title || 'Unknown', other?.avatarUrl || activeChat.avatarUrl);
+              }}
+            >
+              📹
+            </button>
+          </>
+        )}
 
         {/* Search button in header */}
         <button className="icon-btn" style={{ marginLeft: 'auto', marginRight: 8 }} onClick={() => setShowSearch(!showSearch)}>

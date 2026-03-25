@@ -48,6 +48,12 @@ export class CallGateway {
           callerId: userId,
           type: payload.type,
           status: CallStatus.RINGING,
+          participants: {
+            create: {
+              userId: userId,
+              joinedAt: new Date(),
+            }
+          }
         },
         include: {
           chat: {

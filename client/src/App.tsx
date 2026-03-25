@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ChatProvider } from './context/ChatContext';
+import { CallProvider } from './context/CallContext';
+import { CallOverlay } from './components/CallOverlay';
 import { LoginPage, RegisterPage } from './pages/Auth/AuthPages';
 import { ChatPage } from './pages/Chat/ChatPage';
 import './styles/index.css';
@@ -50,7 +52,10 @@ function AppRoutes() {
       <Route path="/" element={
         <ProtectedRoute>
           <ChatProvider>
-            <ChatPage />
+            <CallProvider>
+              <ChatPage />
+              <CallOverlay />
+            </CallProvider>
           </ChatProvider>
         </ProtectedRoute>
       } />

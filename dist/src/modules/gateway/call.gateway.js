@@ -33,6 +33,12 @@ let CallGateway = class CallGateway {
                     callerId: userId,
                     type: payload.type,
                     status: enums_1.CallStatus.RINGING,
+                    participants: {
+                        create: {
+                            userId: userId,
+                            joinedAt: new Date(),
+                        }
+                    }
                 },
                 include: {
                     chat: {

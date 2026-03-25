@@ -7,7 +7,7 @@ class SocketService {
   private listeners: Map<string, Set<(...args: any[]) => void>> = new Map();
 
   connect(token: string) {
-    if (this.socket?.connected) return;
+    if (this.socket) return; // Prevent multiple socket instances from being created during Strict Mode mounting
 
     this.socket = io(SOCKET_URL, {
       auth: { token },
