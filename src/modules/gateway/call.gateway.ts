@@ -200,6 +200,13 @@ export class CallGateway {
         where: { id: payload.callId },
         include: {
           participants: true,
+          chat: {
+            include: {
+              members: {
+                where: { leftAt: null }
+              }
+            }
+          }
         },
       });
 
@@ -227,16 +234,28 @@ export class CallGateway {
         },
       });
 
-      // Notify other participants
-      call.participants.forEach((p) => {
-        if (p.userId !== userId) {
-          this.server.to(`user:${p.userId}`).emit('call:ended', {
-            callId: payload.callId,
-            endedBy: userId,
-            reason: payload.reason,
-          });
-        }
-      });
+      // Notify relevant users
+      if (call.status === CallStatus.RINGING) {
+        call.chat.members.forEach((m) => {
+          if (m.userId !== userId) {
+            this.server.to(`user:${m.userId}`).emit('call:ended', {
+              callId: payload.callId,
+              endedBy: userId,
+              reason: payload.reason,
+            });
+          }
+        });
+      } else {
+        call.participants.forEach((p) => {
+          if (p.userId !== userId) {
+            this.server.to(`user:${p.userId}`).emit('call:ended', {
+              callId: payload.callId,
+              endedBy: userId,
+              reason: payload.reason,
+            });
+          }
+        });
+      }
     } catch (error) {
       console.error('Call end error:', error);
     }
