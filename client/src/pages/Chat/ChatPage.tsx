@@ -235,10 +235,11 @@ function ChatListItem({ chat, isActive, onClick }: { chat: any; isActive: boolea
 
 // ===== CONVERSATION COMPONENT =====
 function Conversation() {
-  const { activeChat, messages, loadMessages, sendMessage, typingUsers } = useChat();
+  const { activeChat, messages, loadMessages, sendMessage, sendMediaMessage, typingUsers } = useChat();
   const { user } = useAuth();
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const chatMessages = activeChat ? (messages[activeChat.id] || []) : [];
   const typingInChat = activeChat ? (typingUsers[activeChat.id] || []) : [];
@@ -274,6 +275,31 @@ function Conversation() {
         socketService.stopTyping(activeChat.id);
       }, 3000);
     }
+  };
+
+  const handleAttachmentClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeChat) return;
+    
+    // Reset input
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
+    // Determine type
+    let type: 'IMAGE' | 'VIDEO' | 'FILE' = 'FILE';
+    if (file.type.startsWith('image/')) type = 'IMAGE';
+    else if (file.type.startsWith('video/')) type = 'VIDEO';
+    
+    // Validate bounds (e.g. 15MB)
+    if (file.size > 15 * 1024 * 1024) {
+      alert('File is too large. Limit is 15MB.');
+      return;
+    }
+
+    sendMediaMessage(activeChat.id, file, type);
   };
 
   if (!activeChat) {
@@ -328,12 +354,28 @@ function Conversation() {
                 </div>
               )}
               <div className={`message-row ${isSent ? 'sent' : 'received'}`}>
-                <div className="message-bubble">
+                <div className={`message-bubble ${msg.type === 'IMAGE' || (msg as any).attachment ? 'media-bubble' : ''}`}>
                   {msg.isDeleted ? (
                     <span className="message-deleted">🚫 This message was deleted</span>
                   ) : (
                     <>
-                      <span className="message-text">{msg.textContent}</span>
+                      {/* Media Rendering */}
+                      {(msg.type === 'IMAGE' || (msg as any).attachment?.mimeType?.startsWith('image/')) && (() => {
+                        const imgSrc = msg.attachmentUrl || 
+                          ((msg as any).attachment?.storageKey ? `http://localhost:3000/uploads/${(msg as any).attachment.storageKey}` : null);
+                        return imgSrc ? (
+                         <div className="message-media-container">
+                           <img 
+                             src={imgSrc} 
+                             alt="Attachment" 
+                             className="message-image" 
+                             style={{ filter: msg.status === 'sending' ? 'brightness(0.7)' : 'none' }}
+                           />
+                         </div>
+                        ) : null;
+                      })()}
+
+                      {msg.textContent && <span className="message-text">{msg.textContent}</span>}
                       <span className="message-meta">
                         {msg.editedAt && <span className="message-edited">edited</span>}
                         <span className="message-time">{formatTime(msg.createdAt)}</span>
@@ -368,7 +410,16 @@ function Conversation() {
 
       <div className="message-input-area">
         <button className="icon-btn">😀</button>
-        <button className="icon-btn">📎</button>
+        <button className="icon-btn" onClick={handleAttachmentClick}>📎</button>
+        
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          style={{ display: 'none' }} 
+          accept="image/*,video/*"
+          onChange={handleFileChange}
+        />
+
         <div className="message-input-box">
           <input
             type="text"

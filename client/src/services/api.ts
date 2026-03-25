@@ -25,8 +25,14 @@ class ApiService {
     }
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ message: 'Request failed' }));
-      throw new Error(err.message || `HTTP ${res.status}`);
+      const errBody = await res.text().catch(() => 'No error body');
+      console.error('BACKEND ERROR:', res.status, errBody);
+      try {
+        const errJson = JSON.parse(errBody);
+        throw new Error(errJson.message || `HTTP ${res.status}`);
+      } catch {
+        throw new Error(errBody || `HTTP ${res.status}`);
+      }
     }
 
     return res.json();
@@ -113,6 +119,25 @@ class ApiService {
     await this.updateProfile({ avatarUrl });
     return data;
   }
+  
+  async uploadMedia(file: File, type: 'IMAGE' | 'VIDEO' | 'FILE' = 'IMAGE') {
+    const token = this.getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', type);
+    const res = await fetch(`${API_BASE}/media/upload`, {
+      method: 'POST',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) {
+        const errText = await res.text();
+        console.error('BACKEND ERROR PAYLOAD:', errText);
+        throw new Error('Upload failed: ' + errText);
+    }
+    return await res.json();
+  }
+
   async searchUsers(query: string) { return this.request<any>(`/users/search?q=${encodeURIComponent(query)}`); }
 
   // Chats

@@ -315,6 +315,56 @@
   border-top-left-radius: 3px;
 }
 
+/* Media Bubbles */
+.message-bubble.media-bubble {
+  padding: 4px;
+  max-width: 320px;
+}
+
+.message-media-container {
+  width: 100%;
+  border-radius: calc(var(--radius-md) - 2px);
+  overflow: hidden;
+  margin-bottom: 2px;
+  position: relative;
+  background: var(--bg-app);
+  min-height: 100px;
+}
+
+.message-image {
+  width: 100%;
+  max-height: 300px;
+  object-fit: cover;
+  display: block;
+}
+
+.media-bubble .message-text {
+  padding: 2px 6px 4px;
+  margin-right: 50px;
+  display: block;
+}
+
+/* Float meta over the image if there's no text, or place normally but with adjusted colors */
+.media-bubble:not(:has(.message-text)) .message-meta {
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 3px 6px;
+  border-radius: 12px;
+  color: white;
+  margin-top: 0;
+}
+
+.media-bubble:not(:has(.message-text)) .message-time,
+.media-bubble:not(:has(.message-text)) .message-status {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.media-bubble:not(:has(.message-text)) .message-status.read {
+  color: #53bdeb !important;
+}
+
 .message-text {
   font-size: 14.2px;
   color: var(--text-bubble);

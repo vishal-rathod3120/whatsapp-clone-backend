@@ -10,6 +10,9 @@ const path_1 = require("path");
 process.on('unhandledRejection', (reason, promise) => {
     console.log('Unhandled Rejection at:', promise, 'reason:', reason);
 });
+BigInt.prototype.toJSON = function () {
+    return this.toString();
+};
 async function bootstrap() {
     try {
         const app = await core_1.NestFactory.create(app_module_1.AppModule, {

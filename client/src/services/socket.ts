@@ -47,7 +47,7 @@ class SocketService {
     this.socket?.emit(event, data);
   }
 
-  sendMessage(chatId: string, data: { clientTempId: string; type: string; textContent?: string; replyToMessageId?: string }) {
+  sendMessage(chatId: string, data: { clientTempId: string; type: string; textContent?: string; replyToMessageId?: string; attachmentId?: string }) {
     this.emit('chat:send', { chatId, ...data });
   }
 

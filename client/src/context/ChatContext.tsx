@@ -1,4 +1,5 @@
-import { createContext, useContext, useReducer, useEffect, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
+import type { ReactNode } from 'react';
 import { api } from '../services/api';
 import { socketService } from '../services/socket';
 import { useAuth } from './AuthContext';
@@ -15,6 +16,9 @@ interface Message {
   sender?: { displayName: string; avatarUrl?: string };
   clientTempId?: string;
   status?: string;
+  attachmentId?: string;
+  attachmentUrl?: string; // Optimistic or actual URL
+  attachmentMimeType?: string;
 }
 
 interface Chat {
@@ -116,6 +120,7 @@ interface ChatContextType extends ChatState {
   selectChat: (chat: Chat) => void;
   loadMessages: (chatId: string) => Promise<void>;
   sendMessage: (chatId: string, text: string) => void;
+  sendMediaMessage: (chatId: string, file: File, type: 'IMAGE' | 'VIDEO' | 'FILE') => Promise<void>;
   dispatch: React.Dispatch<ChatAction>;
 }
 
@@ -167,6 +172,33 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     socketService.sendMessage(chatId, { clientTempId, type: 'TEXT', textContent: text });
   }, []);
 
+  const sendMediaMessage = useCallback(async (chatId: string, file: File, type: 'IMAGE' | 'VIDEO' | 'FILE') => {
+    const clientTempId = crypto.randomUUID();
+    const objectUrl = URL.createObjectURL(file);
+    
+    const optimistic: Message = {
+      id: clientTempId,
+      chatId,
+      senderId: 'me',
+      type,
+      createdAt: new Date().toISOString(),
+      clientTempId,
+      status: 'sending',
+      attachmentUrl: objectUrl,
+      attachmentMimeType: file.type,
+    };
+    dispatch({ type: 'ADD_MESSAGE', payload: optimistic });
+    
+    try {
+      const data = await api.uploadMedia(file, type);
+      socketService.sendMessage(chatId, { clientTempId, type, attachmentId: data.attachmentId });
+    } catch (err) {
+      console.error('Failed to send media message:', err);
+      // Mark as failed
+      dispatch({ type: 'UPDATE_MESSAGE', payload: { id: clientTempId, chatId, updates: { status: 'failed' } } });
+    }
+  }, []);
+
   // Socket event listeners
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -208,7 +240,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [isAuthenticated]);
 
   return (
-    <ChatContext.Provider value={{ ...state, loadChats, selectChat, loadMessages, sendMessage, dispatch }}>
+    <ChatContext.Provider value={{ ...state, loadChats, selectChat, loadMessages, sendMessage, sendMediaMessage, dispatch }}>
       {children}
     </ChatContext.Provider>
   );
