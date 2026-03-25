@@ -22,6 +22,7 @@ export function CallOverlay() {
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     if (localVideoRef.current && localStream) {
@@ -32,6 +33,9 @@ export function CallOverlay() {
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
+    }
+    if (remoteAudioRef.current && remoteStream) {
+      remoteAudioRef.current.srcObject = remoteStream;
     }
   }, [remoteStream]);
 
@@ -50,6 +54,15 @@ export function CallOverlay() {
           autoPlay
           playsInline
           className="call-remote-video"
+        />
+      )}
+
+      {/* Remote Audio */}
+      {!isVideo && callState === 'connected' && remoteStream && (
+        <audio
+          ref={remoteAudioRef}
+          autoPlay
+          playsInline
         />
       )}
 
