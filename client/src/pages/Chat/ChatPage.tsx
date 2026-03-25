@@ -4,6 +4,7 @@ import { useChat } from '../../context/ChatContext';
 import { useTheme } from '../../context/ThemeContext';
 import { api } from '../../services/api';
 import { socketService } from '../../services/socket';
+import { NewGroupModal } from '../../components/NewGroupModal';
 import './Chat.css';
 
 function formatTime(dateStr: string) {
@@ -35,6 +36,7 @@ function Sidebar() {
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [showGroupModal, setShowGroupModal] = useState(false);
 
   useEffect(() => { loadChats(); }, [loadChats]);
 
@@ -92,7 +94,7 @@ function Sidebar() {
           <button className="icon-btn" onClick={toggleTheme} title="Toggle theme">
             {theme === 'dark' ? '☀️' : '🌙'}
           </button>
-          <button className="icon-btn" title="New chat">💬</button>
+          <button className="icon-btn" onClick={() => setShowGroupModal(true)} title="New Group">👥</button>
           <button className="icon-btn" onClick={logout} title="Logout">🚪</button>
         </div>
       </div>
@@ -173,6 +175,17 @@ function Sidebar() {
           )
         )}
       </div>
+
+      {showGroupModal && (
+        <NewGroupModal
+          onClose={() => setShowGroupModal(false)}
+          onGroupCreated={async (newChat) => {
+            await loadChats();
+            const loaded = (await api.getChatList()).find((c: any) => c.id === newChat.id);
+            if (loaded) selectChat(loaded);
+          }}
+        />
+      )}
     </div>
   );
 }
