@@ -1,4 +1,5 @@
-import { IsString, IsOptional, IsNotEmpty, IsEnum, IsPhoneNumber } from 'class-validator';
+import { IsString, IsOptional, IsNotEmpty, IsEnum, IsPhoneNumber, ValidateNested, IsObject } from 'class-validator';
+import { Type } from 'class-transformer';
 import { DeviceType } from '../../../common/enums';
 
 export class DeviceDto {
@@ -31,6 +32,9 @@ export class RegisterDto {
   @IsNotEmpty()
   password: string;
 
+  @IsObject()
+  @ValidateNested()
+  @Type(() => DeviceDto)
   device: DeviceDto;
 }
 
@@ -42,6 +46,9 @@ export class LoginDto {
   @IsNotEmpty()
   password: string;
 
+  @IsObject()
+  @ValidateNested()
+  @Type(() => DeviceDto)
   device: DeviceDto;
 }
 

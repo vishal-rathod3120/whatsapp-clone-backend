@@ -9,76 +9,76 @@ export declare class MessagesService {
     constructor(prisma: PrismaService, messageQueue: MessageQueueService, moduleRef: ModuleRef);
     private get chatGateway();
     createMessage(chatId: string, senderId: string, dto: SendMessageDto): Promise<{
+        sender: {
+            id: string;
+            displayName: string;
+            avatarUrl: string | null;
+        };
         attachment: {
             id: string;
+            width: number | null;
+            height: number | null;
             createdAt: Date;
             uploaderId: string;
             storageKey: string;
             originalName: string | null;
             mimeType: string;
             sizeBytes: bigint;
-            width: number | null;
-            height: number | null;
             durationSeconds: number | null;
             thumbnailKey: string | null;
         } | null;
-        sender: {
-            id: string;
-            displayName: string;
-            avatarUrl: string | null;
-        };
         receipts: {
             userId: string;
-            deliveredAt: Date | null;
             seenAt: Date | null;
+            deliveredAt: Date | null;
         }[];
     } & {
         id: string;
-        clientTempId: string | null;
+        status: import(".prisma/client").$Enums.MessageStatus;
+        createdAt: Date;
         type: import(".prisma/client").$Enums.MessageType;
+        clientTempId: string | null;
         textContent: string | null;
         replyToMessageId: string | null;
-        status: import(".prisma/client").$Enums.MessageStatus;
         isDeleted: boolean;
-        createdAt: Date;
         editedAt: Date | null;
         chatId: string;
         senderId: string;
         attachmentId: string | null;
     }>;
     getMessageById(messageId: string): Promise<{
+        sender: {
+            id: string;
+            displayName: string;
+            avatarUrl: string | null;
+        };
         attachment: {
             id: string;
+            width: number | null;
+            height: number | null;
             createdAt: Date;
             uploaderId: string;
             storageKey: string;
             originalName: string | null;
             mimeType: string;
             sizeBytes: bigint;
-            width: number | null;
-            height: number | null;
             durationSeconds: number | null;
             thumbnailKey: string | null;
         } | null;
-        sender: {
-            id: string;
-            displayName: string;
-            avatarUrl: string | null;
-        };
         receipts: {
             userId: string;
-            deliveredAt: Date | null;
             seenAt: Date | null;
+            deliveredAt: Date | null;
         }[];
     } & {
         id: string;
-        clientTempId: string | null;
+        status: import(".prisma/client").$Enums.MessageStatus;
+        createdAt: Date;
         type: import(".prisma/client").$Enums.MessageType;
+        clientTempId: string | null;
         textContent: string | null;
         replyToMessageId: string | null;
-        status: import(".prisma/client").$Enums.MessageStatus;
         isDeleted: boolean;
-        createdAt: Date;
         editedAt: Date | null;
         chatId: string;
         senderId: string;
@@ -86,38 +86,38 @@ export declare class MessagesService {
     }>;
     getMessages(chatId: string, userId: string, limit?: number, cursor?: string): Promise<{
         items: ({
+            sender: {
+                id: string;
+                displayName: string;
+                avatarUrl: string | null;
+            };
             attachment: {
                 id: string;
+                width: number | null;
+                height: number | null;
                 createdAt: Date;
                 uploaderId: string;
                 storageKey: string;
                 originalName: string | null;
                 mimeType: string;
                 sizeBytes: bigint;
-                width: number | null;
-                height: number | null;
                 durationSeconds: number | null;
                 thumbnailKey: string | null;
             } | null;
-            sender: {
-                id: string;
-                displayName: string;
-                avatarUrl: string | null;
-            };
             receipts: {
                 userId: string;
-                deliveredAt: Date | null;
                 seenAt: Date | null;
+                deliveredAt: Date | null;
             }[];
         } & {
             id: string;
-            clientTempId: string | null;
+            status: import(".prisma/client").$Enums.MessageStatus;
+            createdAt: Date;
             type: import(".prisma/client").$Enums.MessageType;
+            clientTempId: string | null;
             textContent: string | null;
             replyToMessageId: string | null;
-            status: import(".prisma/client").$Enums.MessageStatus;
             isDeleted: boolean;
-            createdAt: Date;
             editedAt: Date | null;
             chatId: string;
             senderId: string;
@@ -129,38 +129,38 @@ export declare class MessagesService {
     markAsSeen(messageId: string, userId: string): Promise<boolean>;
     getUnreadCount(chatId: string, userId: string): Promise<number>;
     getMissedMessages(userId: string, since: Date): Promise<({
+        sender: {
+            id: string;
+            displayName: string;
+            avatarUrl: string | null;
+        };
         attachment: {
             id: string;
+            width: number | null;
+            height: number | null;
             createdAt: Date;
             uploaderId: string;
             storageKey: string;
             originalName: string | null;
             mimeType: string;
             sizeBytes: bigint;
-            width: number | null;
-            height: number | null;
             durationSeconds: number | null;
             thumbnailKey: string | null;
         } | null;
-        sender: {
-            id: string;
-            displayName: string;
-            avatarUrl: string | null;
-        };
         receipts: {
             userId: string;
-            deliveredAt: Date | null;
             seenAt: Date | null;
+            deliveredAt: Date | null;
         }[];
     } & {
         id: string;
-        clientTempId: string | null;
+        status: import(".prisma/client").$Enums.MessageStatus;
+        createdAt: Date;
         type: import(".prisma/client").$Enums.MessageType;
+        clientTempId: string | null;
         textContent: string | null;
         replyToMessageId: string | null;
-        status: import(".prisma/client").$Enums.MessageStatus;
         isDeleted: boolean;
-        createdAt: Date;
         editedAt: Date | null;
         chatId: string;
         senderId: string;
@@ -172,13 +172,13 @@ export declare class MessagesService {
     }>;
     editMessage(chatId: string, messageId: string, userId: string, newTextContent: string): Promise<{
         id: string;
-        clientTempId: string | null;
+        status: import(".prisma/client").$Enums.MessageStatus;
+        createdAt: Date;
         type: import(".prisma/client").$Enums.MessageType;
+        clientTempId: string | null;
         textContent: string | null;
         replyToMessageId: string | null;
-        status: import(".prisma/client").$Enums.MessageStatus;
         isDeleted: boolean;
-        createdAt: Date;
         editedAt: Date | null;
         chatId: string;
         senderId: string;

@@ -19,16 +19,16 @@ export declare class MessagesRepository {
         };
         attachment: {
             id: string;
+            width: number | null;
+            height: number | null;
             createdAt: Date;
+            uploaderId: string;
             storageKey: string;
             originalName: string | null;
             mimeType: string;
             sizeBytes: bigint;
-            width: number | null;
-            height: number | null;
             durationSeconds: number | null;
             thumbnailKey: string | null;
-            uploaderId: string;
         } | null;
         receipts: {
             userId: string;
@@ -37,12 +37,12 @@ export declare class MessagesRepository {
         }[];
     } & {
         id: string;
+        status: import(".prisma/client").$Enums.MessageStatus;
         createdAt: Date;
         type: import(".prisma/client").$Enums.MessageType;
         clientTempId: string | null;
         textContent: string | null;
         replyToMessageId: string | null;
-        status: import(".prisma/client").$Enums.MessageStatus;
         isDeleted: boolean;
         editedAt: Date | null;
         chatId: string;
@@ -57,16 +57,16 @@ export declare class MessagesRepository {
         };
         attachment: {
             id: string;
+            width: number | null;
+            height: number | null;
             createdAt: Date;
+            uploaderId: string;
             storageKey: string;
             originalName: string | null;
             mimeType: string;
             sizeBytes: bigint;
-            width: number | null;
-            height: number | null;
             durationSeconds: number | null;
             thumbnailKey: string | null;
-            uploaderId: string;
         } | null;
         receipts: {
             userId: string;
@@ -75,12 +75,12 @@ export declare class MessagesRepository {
         }[];
     } & {
         id: string;
+        status: import(".prisma/client").$Enums.MessageStatus;
         createdAt: Date;
         type: import(".prisma/client").$Enums.MessageType;
         clientTempId: string | null;
         textContent: string | null;
         replyToMessageId: string | null;
-        status: import(".prisma/client").$Enums.MessageStatus;
         isDeleted: boolean;
         editedAt: Date | null;
         chatId: string;
@@ -95,16 +95,16 @@ export declare class MessagesRepository {
         };
         attachment: {
             id: string;
+            width: number | null;
+            height: number | null;
             createdAt: Date;
+            uploaderId: string;
             storageKey: string;
             originalName: string | null;
             mimeType: string;
             sizeBytes: bigint;
-            width: number | null;
-            height: number | null;
             durationSeconds: number | null;
             thumbnailKey: string | null;
-            uploaderId: string;
         } | null;
         receipts: {
             userId: string;
@@ -113,12 +113,12 @@ export declare class MessagesRepository {
         }[];
     } & {
         id: string;
+        status: import(".prisma/client").$Enums.MessageStatus;
         createdAt: Date;
         type: import(".prisma/client").$Enums.MessageType;
         clientTempId: string | null;
         textContent: string | null;
         replyToMessageId: string | null;
-        status: import(".prisma/client").$Enums.MessageStatus;
         isDeleted: boolean;
         editedAt: Date | null;
         chatId: string;

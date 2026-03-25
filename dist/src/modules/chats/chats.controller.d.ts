@@ -17,11 +17,11 @@ export declare class ChatsController {
         }[];
     } & {
         id: string;
+        title: string | null;
         avatarUrl: string | null;
         createdAt: Date;
         updatedAt: Date;
         type: import(".prisma/client").$Enums.ChatType;
-        title: string | null;
         createdById: string;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
@@ -34,10 +34,10 @@ export declare class ChatsController {
             avatarUrl: string | null | undefined;
             lastMessage: {
                 id: string;
+                status: import(".prisma/client").$Enums.MessageStatus;
                 createdAt: Date;
                 type: import(".prisma/client").$Enums.MessageType;
                 textContent: string | null;
-                status: import(".prisma/client").$Enums.MessageStatus;
                 senderId: string;
             };
             unreadCount: number;
@@ -84,11 +84,11 @@ export declare class ChatsController {
         })[];
     } & {
         id: string;
+        title: string | null;
         avatarUrl: string | null;
         createdAt: Date;
         updatedAt: Date;
         type: import(".prisma/client").$Enums.ChatType;
-        title: string | null;
         createdById: string;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
@@ -105,11 +105,11 @@ export declare class ChatsController {
     }>;
     updateGroupInfo(chatId: string, dto: UpdateGroupDto, user: JwtPayload): Promise<{
         id: string;
+        title: string | null;
         avatarUrl: string | null;
         createdAt: Date;
         updatedAt: Date;
         type: import(".prisma/client").$Enums.ChatType;
-        title: string | null;
         createdById: string;
         lastMessageId: string | null;
         lastMessageAt: Date | null;

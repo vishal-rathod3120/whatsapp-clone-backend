@@ -6,38 +6,38 @@ export declare class MessagesController {
     constructor(messagesService: MessagesService);
     getMessages(chatId: string, query: GetMessagesQueryDto, user: JwtPayload): Promise<{
         items: ({
+            sender: {
+                id: string;
+                displayName: string;
+                avatarUrl: string | null;
+            };
             attachment: {
                 id: string;
+                width: number | null;
+                height: number | null;
                 createdAt: Date;
                 uploaderId: string;
                 storageKey: string;
                 originalName: string | null;
                 mimeType: string;
                 sizeBytes: bigint;
-                width: number | null;
-                height: number | null;
                 durationSeconds: number | null;
                 thumbnailKey: string | null;
             } | null;
-            sender: {
-                id: string;
-                displayName: string;
-                avatarUrl: string | null;
-            };
             receipts: {
                 userId: string;
-                deliveredAt: Date | null;
                 seenAt: Date | null;
+                deliveredAt: Date | null;
             }[];
         } & {
             id: string;
-            clientTempId: string | null;
+            status: import(".prisma/client").$Enums.MessageStatus;
+            createdAt: Date;
             type: import(".prisma/client").$Enums.MessageType;
+            clientTempId: string | null;
             textContent: string | null;
             replyToMessageId: string | null;
-            status: import(".prisma/client").$Enums.MessageStatus;
             isDeleted: boolean;
-            createdAt: Date;
             editedAt: Date | null;
             chatId: string;
             senderId: string;
@@ -46,38 +46,38 @@ export declare class MessagesController {
         nextCursor: string | null;
     }>;
     sendMessage(chatId: string, dto: SendMessageDto, user: JwtPayload): Promise<{
+        sender: {
+            id: string;
+            displayName: string;
+            avatarUrl: string | null;
+        };
         attachment: {
             id: string;
+            width: number | null;
+            height: number | null;
             createdAt: Date;
             uploaderId: string;
             storageKey: string;
             originalName: string | null;
             mimeType: string;
             sizeBytes: bigint;
-            width: number | null;
-            height: number | null;
             durationSeconds: number | null;
             thumbnailKey: string | null;
         } | null;
-        sender: {
-            id: string;
-            displayName: string;
-            avatarUrl: string | null;
-        };
         receipts: {
             userId: string;
-            deliveredAt: Date | null;
             seenAt: Date | null;
+            deliveredAt: Date | null;
         }[];
     } & {
         id: string;
-        clientTempId: string | null;
+        status: import(".prisma/client").$Enums.MessageStatus;
+        createdAt: Date;
         type: import(".prisma/client").$Enums.MessageType;
+        clientTempId: string | null;
         textContent: string | null;
         replyToMessageId: string | null;
-        status: import(".prisma/client").$Enums.MessageStatus;
         isDeleted: boolean;
-        createdAt: Date;
         editedAt: Date | null;
         chatId: string;
         senderId: string;
@@ -89,13 +89,13 @@ export declare class MessagesController {
     }>;
     editMessage(chatId: string, messageId: string, dto: EditMessageDto, user: JwtPayload): Promise<{
         id: string;
-        clientTempId: string | null;
+        status: import(".prisma/client").$Enums.MessageStatus;
+        createdAt: Date;
         type: import(".prisma/client").$Enums.MessageType;
+        clientTempId: string | null;
         textContent: string | null;
         replyToMessageId: string | null;
-        status: import(".prisma/client").$Enums.MessageStatus;
         isDeleted: boolean;
-        createdAt: Date;
         editedAt: Date | null;
         chatId: string;
         senderId: string;

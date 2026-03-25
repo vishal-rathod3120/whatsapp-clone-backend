@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LogoutDto = exports.RefreshTokenDto = exports.LoginDto = exports.RegisterDto = exports.DeviceDto = void 0;
 const class_validator_1 = require("class-validator");
+const class_transformer_1 = require("class-transformer");
 const enums_1 = require("../../../common/enums");
 class DeviceDto {
 }
@@ -52,6 +53,12 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "password", void 0);
+__decorate([
+    (0, class_validator_1.IsObject)(),
+    (0, class_validator_1.ValidateNested)(),
+    (0, class_transformer_1.Type)(() => DeviceDto),
+    __metadata("design:type", DeviceDto)
+], RegisterDto.prototype, "device", void 0);
 class LoginDto {
 }
 exports.LoginDto = LoginDto;
@@ -64,6 +71,12 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], LoginDto.prototype, "password", void 0);
+__decorate([
+    (0, class_validator_1.IsObject)(),
+    (0, class_validator_1.ValidateNested)(),
+    (0, class_transformer_1.Type)(() => DeviceDto),
+    __metadata("design:type", DeviceDto)
+], LoginDto.prototype, "device", void 0);
 class RefreshTokenDto {
 }
 exports.RefreshTokenDto = RefreshTokenDto;
