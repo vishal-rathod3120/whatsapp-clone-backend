@@ -167,6 +167,12 @@ class ApiService {
       method: 'DELETE',
     });
   }
+
+  async deleteGroup(chatId: string) {
+    return this.request<any>(`/chats/${chatId}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const api = new ApiService();

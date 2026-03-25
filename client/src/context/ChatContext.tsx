@@ -38,10 +38,13 @@ interface ChatState {
   messages: Record<string, Message[]>;
   typingUsers: Record<string, string[]>;
   isLoadingChats: boolean;
+  onlineUsers: string[];
 }
 
 type ChatAction =
   | { type: 'SET_CHATS'; payload: Chat[] }
+  | { type: 'ADD_CHAT'; payload: Chat }
+  | { type: 'DELETE_CHAT'; payload: string }
   | { type: 'SET_ACTIVE_CHAT'; payload: Chat | null }
   | { type: 'SET_MESSAGES'; payload: { chatId: string; messages: Message[] } }
   | { type: 'ADD_MESSAGE'; payload: Message }
@@ -50,12 +53,26 @@ type ChatAction =
   | { type: 'UPDATE_UNREAD'; payload: { chatId: string; count: number } }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SENT_ACK'; payload: { clientTempId: string; message: Message } }
-  | { type: 'DELETE_MESSAGE'; payload: { id: string; chatId: string; forEveryone: boolean } };
+  | { type: 'DELETE_MESSAGE'; payload: { id: string; chatId: string; forEveryone: boolean } }
+  | { type: 'SET_ONLINE_USERS'; payload: string[] };
 
 function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
     case 'SET_CHATS':
       return { ...state, chats: action.payload, isLoadingChats: false };
+    case 'ADD_CHAT':
+      // Add new chat to the beginning of the list
+      return { ...state, chats: [action.payload, ...state.chats] };
+    case 'DELETE_CHAT': {
+      const chatId = action.payload;
+      const { [chatId]: _, ...remainingMessages } = state.messages;
+      return {
+        ...state,
+        chats: state.chats.filter(c => c.id !== chatId),
+        messages: remainingMessages,
+        activeChat: state.activeChat?.id === chatId ? null : state.activeChat
+      };
+    }
     case 'SET_ACTIVE_CHAT':
       return { ...state, activeChat: action.payload };
     case 'SET_MESSAGES':
@@ -80,7 +97,7 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       const { clientTempId, message } = action.payload;
       const chatId = message.chatId;
       const msgs = (state.messages[chatId] || []).map(m =>
-        m.clientTempId === clientTempId ? { ...message, clientTempId } : m
+        m.clientTempId === clientTempId ? { ...message, clientTempId: undefined } : m
       );
       return { ...state, messages: { ...state.messages, [chatId]: msgs } };
     }
@@ -117,6 +134,8 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
         return { ...state, messages: { ...state.messages, [chatId]: msgs } };
       }
     }
+    case 'SET_ONLINE_USERS':
+      return { ...state, onlineUsers: action.payload };
     default:
       return state;
   }
@@ -128,6 +147,7 @@ const initialState: ChatState = {
   messages: {},
   typingUsers: {},
   isLoadingChats: true,
+  onlineUsers: [],
 };
 
 interface ChatContextType extends ChatState {
@@ -137,6 +157,9 @@ interface ChatContextType extends ChatState {
   sendMessage: (chatId: string, text: string) => void;
   sendMediaMessage: (chatId: string, file: File, type: 'IMAGE' | 'VIDEO' | 'FILE') => Promise<void>;
   deleteMessage: (chatId: string, messageId: string, forEveryone: boolean) => Promise<void>;
+  deleteGroup: (chatId: string) => Promise<void>;
+  createDirectChat: (targetUserId: string) => Promise<void>;
+  createGroupChat: (name: string, memberIds: string[]) => Promise<void>;
   dispatch: React.Dispatch<ChatAction>;
 }
 
@@ -223,6 +246,35 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const deleteGroup = useCallback(async (chatId: string) => {
+    try {
+      await api.deleteGroup(chatId);
+      dispatch({ type: 'DELETE_CHAT', payload: chatId });
+    } catch (err) {
+      console.error('Failed to delete group:', err);
+    }
+  }, []);
+
+  const createDirectChat = useCallback(async (targetUserId: string) => {
+    try {
+      const newChat = await api.createDirectChat(targetUserId);
+      dispatch({ type: 'ADD_CHAT', payload: newChat });
+      dispatch({ type: 'SET_ACTIVE_CHAT', payload: newChat });
+    } catch (err) {
+      console.error('Failed to create direct chat:', err);
+    }
+  }, []);
+
+  const createGroupChat = useCallback(async (name: string, memberIds: string[]) => {
+    try {
+      const newChat = await api.createGroupChat(name, memberIds);
+      dispatch({ type: 'ADD_CHAT', payload: newChat });
+      dispatch({ type: 'SET_ACTIVE_CHAT', payload: newChat });
+    } catch (err) {
+      console.error('Failed to create group chat:', err);
+    }
+  }, []);
+
   // Socket event listeners
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -248,11 +300,22 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'UPDATE_MESSAGE', payload: { id: data.messageId, chatId: data.chatId, updates: { textContent: data.textContent, editedAt: data.editedAt } } });
     };
 
+    const onChatDeleted = (data: { chatId: string }) => {
+      dispatch({ type: 'DELETE_CHAT', payload: data.chatId });
+    };
+
+    const onUserOnline = (userIds: string[]) => {
+      dispatch({ type: 'SET_ONLINE_USERS', payload: userIds });
+    };
+
     socketService.on('chat:new', onNewMessage);
     socketService.on('chat:sent-ack', onSentAck);
     socketService.on('chat:typing:update', onTyping);
     socketService.on('message:deleted', onMessageDeleted);
     socketService.on('message:edited', onMessageEdited);
+    socketService.on('chat:deleted', onChatDeleted);
+    socketService.on('user:online', onUserOnline);
+
 
     return () => {
       socketService.off('chat:new', onNewMessage);
@@ -260,11 +323,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       socketService.off('chat:typing:update', onTyping);
       socketService.off('message:deleted', onMessageDeleted);
       socketService.off('message:edited', onMessageEdited);
+      socketService.off('chat:deleted', onChatDeleted);
+      socketService.off('user:online', onUserOnline);
     };
   }, [isAuthenticated]);
 
   return (
-    <ChatContext.Provider value={{ ...state, loadChats, selectChat, loadMessages, sendMessage, sendMediaMessage, deleteMessage, dispatch }}>
+    <ChatContext.Provider value={{ ...state, loadChats, selectChat, loadMessages, sendMessage, sendMediaMessage, deleteMessage, deleteGroup, createDirectChat, createGroupChat, dispatch }}>
       {children}
     </ChatContext.Provider>
   );

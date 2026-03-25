@@ -235,11 +235,23 @@ function ChatListItem({ chat, isActive, onClick }: { chat: any; isActive: boolea
 
 // ===== CONVERSATION COMPONENT =====
 function Conversation() {
-  const { activeChat, messages, loadMessages, sendMessage, sendMediaMessage, deleteMessage, typingUsers } = useChat();
+  const { 
+    activeChat, 
+    messages, 
+    loadMessages, 
+    sendMessage, 
+    sendMediaMessage, 
+    deleteMessage, 
+    deleteGroup,
+    createDirectChat,
+    createGroupChat,
+    typingUsers 
+  } = useChat();
   const { user } = useAuth();
   const [input, setInput] = useState('');
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -335,9 +347,50 @@ function Conversation() {
                 : 'online'}
           </div>
         </div>
-        <div className="sidebar-header-actions">
+        <div className="sidebar-header-actions" style={{ position: 'relative' }}>
           <button className="icon-btn">🔍</button>
-          <button className="icon-btn">⋮</button>
+          <button className="icon-btn" onClick={() => setShowHeaderMenu(!showHeaderMenu)}>⋮</button>
+          {showHeaderMenu && (
+            <div className="message-menu" style={{ top: '100%', right: 0, minWidth: 150 }}>
+              {activeChat.type === 'GROUP' && (
+                <>
+                  <button onClick={() => { /* View Group Info */ setShowHeaderMenu(false); }}>Group Info</button>
+                  {activeChat.members.find((m: any) => m.userId === user?.id)?.role === 'OWNER' && (
+                    <button 
+                      style={{ color: '#ff2e74', position: 'relative', zIndex: 1000 }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        console.log('Delete Group MOUSE DOWN');
+                      }}
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Delete Group CLICKED. activeChat.id:', activeChat.id);
+                        if (window.confirm('Are you sure you want to delete this group? This action cannot be undone.')) {
+                          console.log('User confirmed deletion');
+                          try {
+                            await deleteGroup(activeChat.id);
+                            console.log('Delete group task completed');
+                          } catch (err) {
+                            console.error('Delete group failed error:', err);
+                          }
+                          setShowHeaderMenu(false);
+                        } else {
+                          console.log('User cancelled deletion');
+                          setShowHeaderMenu(false);
+                        }
+                      }}
+                    >
+                      Delete Group
+                    </button>
+                  )}
+                </>
+              )}
+              {activeChat.type === 'DIRECT' && (
+                <button onClick={() => { /* Block User */ setShowHeaderMenu(false); }}>Block</button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

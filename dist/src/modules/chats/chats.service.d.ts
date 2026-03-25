@@ -1,30 +1,32 @@
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateDirectChatDto } from './dto/chat.dto';
 import { ChatMemberRole } from '../../common/enums';
+import { MediaService } from '../media/media.service';
 export declare class ChatsService {
     private prisma;
-    constructor(prisma: PrismaService);
+    private mediaService;
+    constructor(prisma: PrismaService, mediaService: MediaService);
     createDirectChat(userId: string, dto: CreateDirectChatDto): Promise<{
         members: {
             id: string;
+            userId: string;
             role: import(".prisma/client").$Enums.ChatMemberRole;
             joinedAt: Date;
             leftAt: Date | null;
             isMuted: boolean;
             lastReadMessageId: string | null;
-            userId: string;
             chatId: string;
         }[];
     } & {
         id: string;
-        avatarUrl: string | null;
-        createdAt: Date;
-        updatedAt: Date;
         type: import(".prisma/client").$Enums.ChatType;
         title: string | null;
+        avatarUrl: string | null;
         createdById: string;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     createGroupChat(userId: string, dto: {
         title: string;
@@ -34,29 +36,29 @@ export declare class ChatsService {
         members: ({
             user: {
                 id: string;
-                displayName: string;
                 avatarUrl: string | null;
+                displayName: string;
             };
         } & {
             id: string;
+            userId: string;
             role: import(".prisma/client").$Enums.ChatMemberRole;
             joinedAt: Date;
             leftAt: Date | null;
             isMuted: boolean;
             lastReadMessageId: string | null;
-            userId: string;
             chatId: string;
         })[];
     } & {
         id: string;
-        avatarUrl: string | null;
-        createdAt: Date;
-        updatedAt: Date;
         type: import(".prisma/client").$Enums.ChatType;
         title: string | null;
+        avatarUrl: string | null;
         createdById: string;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     addGroupMembers(chatId: string, requesterId: string, userIds: string[]): Promise<{
         success: boolean;
@@ -70,14 +72,14 @@ export declare class ChatsService {
     }>;
     updateGroupInfo(chatId: string, requesterId: string, title?: string, avatarUrl?: string): Promise<{
         id: string;
-        avatarUrl: string | null;
-        createdAt: Date;
-        updatedAt: Date;
         type: import(".prisma/client").$Enums.ChatType;
         title: string | null;
+        avatarUrl: string | null;
         createdById: string;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     getChatList(userId: string, limit?: number, cursor?: string): Promise<{
         items: {
@@ -87,11 +89,11 @@ export declare class ChatsService {
             avatarUrl: string | null | undefined;
             lastMessage: {
                 id: string;
-                createdAt: Date;
                 type: import(".prisma/client").$Enums.MessageType;
+                createdAt: Date;
+                senderId: string;
                 textContent: string | null;
                 status: import(".prisma/client").$Enums.MessageStatus;
-                senderId: string;
             };
             unreadCount: number;
             lastMessageAt: Date | null;
@@ -99,6 +101,7 @@ export declare class ChatsService {
                 userId: string;
                 displayName: string;
                 avatarUrl: string | null;
+                role: import(".prisma/client").$Enums.ChatMemberRole;
             }[];
         }[];
         nextCursor: string | null;
@@ -122,4 +125,7 @@ export declare class ChatsService {
     getOtherMemberId(chatId: string, userId: string): Promise<string | null>;
     isChatMuted(chatId: string, userId: string): Promise<boolean>;
     getMutualContactIds(userId: string): Promise<string[]>;
+    deleteGroup(chatId: string, userId: string): Promise<{
+        success: boolean;
+    }>;
 }

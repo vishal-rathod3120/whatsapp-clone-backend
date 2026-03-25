@@ -12,12 +12,13 @@ const messages_controller_1 = require("./messages.controller");
 const messages_service_1 = require("./messages.service");
 const queue_module_1 = require("../../common/queue/queue.module");
 const prisma_module_1 = require("../../prisma/prisma.module");
+const media_module_1 = require("../media/media.module");
 let MessagesModule = class MessagesModule {
 };
 exports.MessagesModule = MessagesModule;
 exports.MessagesModule = MessagesModule = __decorate([
     (0, common_1.Module)({
-        imports: [queue_module_1.QueueModule, prisma_module_1.PrismaModule],
+        imports: [queue_module_1.QueueModule, prisma_module_1.PrismaModule, media_module_1.MediaModule],
         controllers: [messages_controller_1.MessagesController],
         providers: [messages_service_1.MessagesService],
         exports: [messages_service_1.MessagesService],

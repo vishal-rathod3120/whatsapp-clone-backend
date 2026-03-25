@@ -5,6 +5,7 @@ import { MessageType, MessageStatus, ChatType } from '../../common/enums';
 import { MessageQueueService } from '../../common/queue/message-queue.service';
 import { uuidv7 } from 'uuidv7';
 import { ModuleRef } from '@nestjs/core';
+import { MediaService } from '../media/media.service';
 // import { ChatGateway } from '../gateway/chat.gateway'; // Removed direct import to break potential cyclic dependency
 // import { forwardRef, Inject } from '@nestjs/common'; // Not needed if not directly injecting
 
@@ -14,6 +15,7 @@ export class MessagesService {
     private prisma: PrismaService,
     private messageQueue: MessageQueueService,
     private moduleRef: ModuleRef,
+    private mediaService: MediaService,
   ) {}
 
   private get chatGateway(): any {
@@ -327,6 +329,8 @@ export class MessagesService {
         throw new ForbiddenException('You can only delete messages within 15 minutes of sending');
       }
 
+      const attachmentId = message.attachmentId;
+
       await this.prisma.message.update({
         where: { id: messageId },
         data: {
@@ -335,6 +339,16 @@ export class MessagesService {
           attachmentId: null,
         },
       });
+
+      // Cleanup attachment if it's an orphan
+      if (attachmentId) {
+        const usageCount = await this.prisma.message.count({
+          where: { attachmentId }
+        });
+        if (usageCount === 0) {
+          await this.mediaService.deleteAttachment(attachmentId);
+        }
+      }
 
       // Broadcast deletion
       const members = await this.prisma.chatMember.findMany({

@@ -50,6 +50,9 @@ let ChatsController = class ChatsController {
     async updateGroupInfo(chatId, dto, user) {
         return this.chatsService.updateGroupInfo(chatId, user.sub, dto.title, dto.avatarUrl);
     }
+    async deleteGroup(chatId, user) {
+        return this.chatsService.deleteGroup(chatId, user.sub);
+    }
 };
 exports.ChatsController = ChatsController;
 __decorate([
@@ -139,6 +142,15 @@ __decorate([
     __metadata("design:paramtypes", [String, chat_dto_1.UpdateGroupDto, Object]),
     __metadata("design:returntype", Promise)
 ], ChatsController.prototype, "updateGroupInfo", null);
+__decorate([
+    (0, common_1.Delete)(':chatId'),
+    (0, swagger_1.ApiOperation)({ summary: 'Delete a group chat' }),
+    __param(0, (0, common_1.Param)('chatId')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], ChatsController.prototype, "deleteGroup", null);
 exports.ChatsController = ChatsController = __decorate([
     (0, swagger_1.ApiTags)('Chats'),
     (0, swagger_1.ApiBearerAuth)(),

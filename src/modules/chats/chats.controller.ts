@@ -87,4 +87,10 @@ export class ChatsController {
   ) {
     return this.chatsService.updateGroupInfo(chatId, user.sub, dto.title, dto.avatarUrl);
   }
+
+  @Delete(':chatId')
+  @ApiOperation({ summary: 'Delete a group chat' })
+  async deleteGroup(@Param('chatId') chatId: string, @CurrentUser() user: JwtPayload) {
+    return this.chatsService.deleteGroup(chatId, user.sub);
+  }
 }

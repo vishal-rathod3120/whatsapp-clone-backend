@@ -16,11 +16,13 @@ const enums_1 = require("../../common/enums");
 const message_queue_service_1 = require("../../common/queue/message-queue.service");
 const uuidv7_1 = require("uuidv7");
 const core_1 = require("@nestjs/core");
+const media_service_1 = require("../media/media.service");
 let MessagesService = class MessagesService {
-    constructor(prisma, messageQueue, moduleRef) {
+    constructor(prisma, messageQueue, moduleRef, mediaService) {
         this.prisma = prisma;
         this.messageQueue = messageQueue;
         this.moduleRef = moduleRef;
+        this.mediaService = mediaService;
     }
     get chatGateway() {
         try {
@@ -290,6 +292,7 @@ let MessagesService = class MessagesService {
             if (Date.now() - message.createdAt.getTime() > fifteenMinutesMs) {
                 throw new common_1.ForbiddenException('You can only delete messages within 15 minutes of sending');
             }
+            const attachmentId = message.attachmentId;
             await this.prisma.message.update({
                 where: { id: messageId },
                 data: {
@@ -298,6 +301,14 @@ let MessagesService = class MessagesService {
                     attachmentId: null,
                 },
             });
+            if (attachmentId) {
+                const usageCount = await this.prisma.message.count({
+                    where: { attachmentId }
+                });
+                if (usageCount === 0) {
+                    await this.mediaService.deleteAttachment(attachmentId);
+                }
+            }
             const members = await this.prisma.chatMember.findMany({
                 where: { chatId, leftAt: null },
                 select: { userId: true },
@@ -371,6 +382,7 @@ exports.MessagesService = MessagesService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         message_queue_service_1.MessageQueueService,
-        core_1.ModuleRef])
+        core_1.ModuleRef,
+        media_service_1.MediaService])
 ], MessagesService);
 //# sourceMappingURL=messages.service.js.map

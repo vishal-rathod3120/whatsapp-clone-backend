@@ -121,4 +121,31 @@ export class MediaService {
     const baseUrl = this.configService.get('storage.publicUrl') || 'http://localhost:3000/uploads';
     return `${baseUrl}/${storageKey}`;
   }
+
+  async deleteAttachment(id: string) {
+    const attachment = await this.prisma.attachment.findUnique({
+      where: { id },
+    });
+
+    if (!attachment) {
+      return;
+    }
+
+    try {
+      // Delete main file
+      await this.storage.delete(attachment.storageKey);
+
+      // Delete thumbnail if exists
+      if (attachment.thumbnailKey) {
+        await this.storage.delete(attachment.thumbnailKey);
+      }
+    } catch (e: any) {
+      Logger.error(`Failed to delete storage file for attachment ${id}: ${e.message}`);
+      // Continue to delete DB record even if file deletion fails
+    }
+
+    await this.prisma.attachment.delete({
+      where: { id },
+    });
+  }
 }

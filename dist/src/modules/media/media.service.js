@@ -100,6 +100,26 @@ let MediaService = class MediaService {
         const baseUrl = this.configService.get('storage.publicUrl') || 'http://localhost:3000/uploads';
         return `${baseUrl}/${storageKey}`;
     }
+    async deleteAttachment(id) {
+        const attachment = await this.prisma.attachment.findUnique({
+            where: { id },
+        });
+        if (!attachment) {
+            return;
+        }
+        try {
+            await this.storage.delete(attachment.storageKey);
+            if (attachment.thumbnailKey) {
+                await this.storage.delete(attachment.thumbnailKey);
+            }
+        }
+        catch (e) {
+            common_1.Logger.error(`Failed to delete storage file for attachment ${id}: ${e.message}`);
+        }
+        await this.prisma.attachment.delete({
+            where: { id },
+        });
+    }
 };
 exports.MediaService = MediaService;
 exports.MediaService = MediaService = __decorate([

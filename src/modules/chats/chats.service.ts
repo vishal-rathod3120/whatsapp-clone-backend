@@ -2,10 +2,14 @@ import { Injectable, NotFoundException, ConflictException, ForbiddenException } 
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateDirectChatDto } from './dto/chat.dto';
 import { ChatType, ChatMemberRole } from '../../common/enums';
+import { MediaService } from '../media/media.service';
 
 @Injectable()
 export class ChatsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private mediaService: MediaService,
+  ) {}
 
   async createDirectChat(userId: string, dto: CreateDirectChatDto) {
     // Check if chat already exists between these users
@@ -275,6 +279,7 @@ export class ChatsService {
             userId: m.userId,
             displayName: m.user.displayName,
             avatarUrl: m.user.avatarUrl,
+            role: m.role,
           })),
         };
       }),
@@ -430,5 +435,60 @@ export class ChatsService {
     });
 
     return mutuals.map(m => m.userId);
+  }
+
+  async deleteGroup(chatId: string, userId: string) {
+    const chat = await this.prisma.chat.findUnique({
+      where: { id: chatId },
+      include: { 
+        members: true,
+        messages: {
+          where: { attachmentId: { not: null } },
+          select: { attachmentId: true }
+        }
+      }
+    });
+
+    if (!chat || chat.type !== ChatType.GROUP) {
+      throw new NotFoundException('Group chat not found');
+    }
+
+    const owner = chat.members.find(m => m.userId === userId && m.role === ChatMemberRole.OWNER);
+    if (!owner) {
+      throw new ForbiddenException('Only the owner can delete the group');
+    }
+
+    // Get all unique attachments to delete
+    const attachmentIds = Array.from(new Set(chat.messages.map(m => m.attachmentId).filter(Boolean) as string[]));
+
+    // Delete chat (Prisma Cascade should handle members/messages/receipts if set up)
+    await this.prisma.chat.delete({
+      where: { id: chatId }
+    });
+
+    // Cleanup files in background
+    for (const attachmentId of attachmentIds) {
+      // Check if attachment is used elsewhere (e.g. forward)
+      const otherUsage = await this.prisma.message.count({
+        where: { attachmentId }
+      });
+      if (otherUsage === 0) {
+        await this.mediaService.deleteAttachment(attachmentId);
+      }
+    }
+
+    // Broadcast deletion
+    try {
+      const gateway = (this as any).moduleRef.get('ChatGateway', { strict: false });
+      if (gateway?.server) {
+        chat.members.forEach((m) => {
+          gateway.server.to(`user:${m.userId}`).emit('chat:deleted', { chatId });
+        });
+      }
+    } catch (e) {
+      // Gateway might not be available
+    }
+
+    return { success: true };
   }
 }

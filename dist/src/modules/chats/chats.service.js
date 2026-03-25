@@ -13,9 +13,11 @@ exports.ChatsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const enums_1 = require("../../common/enums");
+const media_service_1 = require("../media/media.service");
 let ChatsService = class ChatsService {
-    constructor(prisma) {
+    constructor(prisma, mediaService) {
         this.prisma = prisma;
+        this.mediaService = mediaService;
     }
     async createDirectChat(userId, dto) {
         const existingChat = await this.prisma.chat.findFirst({
@@ -251,6 +253,7 @@ let ChatsService = class ChatsService {
                     userId: m.userId,
                     displayName: m.user.displayName,
                     avatarUrl: m.user.avatarUrl,
+                    role: m.role,
                 })),
             };
         }));
@@ -386,10 +389,53 @@ let ChatsService = class ChatsService {
         });
         return mutuals.map(m => m.userId);
     }
+    async deleteGroup(chatId, userId) {
+        const chat = await this.prisma.chat.findUnique({
+            where: { id: chatId },
+            include: {
+                members: true,
+                messages: {
+                    where: { attachmentId: { not: null } },
+                    select: { attachmentId: true }
+                }
+            }
+        });
+        if (!chat || chat.type !== enums_1.ChatType.GROUP) {
+            throw new common_1.NotFoundException('Group chat not found');
+        }
+        const owner = chat.members.find(m => m.userId === userId && m.role === enums_1.ChatMemberRole.OWNER);
+        if (!owner) {
+            throw new common_1.ForbiddenException('Only the owner can delete the group');
+        }
+        const attachmentIds = Array.from(new Set(chat.messages.map(m => m.attachmentId).filter(Boolean)));
+        await this.prisma.chat.delete({
+            where: { id: chatId }
+        });
+        for (const attachmentId of attachmentIds) {
+            const otherUsage = await this.prisma.message.count({
+                where: { attachmentId }
+            });
+            if (otherUsage === 0) {
+                await this.mediaService.deleteAttachment(attachmentId);
+            }
+        }
+        try {
+            const gateway = this.moduleRef.get('ChatGateway', { strict: false });
+            if (gateway?.server) {
+                chat.members.forEach((m) => {
+                    gateway.server.to(`user:${m.userId}`).emit('chat:deleted', { chatId });
+                });
+            }
+        }
+        catch (e) {
+        }
+        return { success: true };
+    }
 };
 exports.ChatsService = ChatsService;
 exports.ChatsService = ChatsService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        media_service_1.MediaService])
 ], ChatsService);
 //# sourceMappingURL=chats.service.js.map
