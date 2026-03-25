@@ -49,7 +49,8 @@ type ChatAction =
   | { type: 'SET_TYPING'; payload: { chatId: string; userId: string; isTyping: boolean } }
   | { type: 'UPDATE_UNREAD'; payload: { chatId: string; count: number } }
   | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SENT_ACK'; payload: { clientTempId: string; message: Message } };
+  | { type: 'SENT_ACK'; payload: { clientTempId: string; message: Message } }
+  | { type: 'DELETE_MESSAGE'; payload: { id: string; chatId: string; forEveryone: boolean } };
 
 function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
@@ -102,6 +103,20 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
     }
     case 'SET_LOADING':
       return { ...state, isLoadingChats: action.payload };
+    case 'DELETE_MESSAGE': {
+      const { id, chatId, forEveryone } = action.payload;
+      if (forEveryone) {
+        // Just mark as deleted (text will be hidden by UI)
+        const msgs = (state.messages[chatId] || []).map(m => 
+          m.id === id ? { ...m, isDeleted: true, textContent: undefined, attachmentId: undefined, attachmentUrl: undefined } : m
+        );
+        return { ...state, messages: { ...state.messages, [chatId]: msgs } };
+      } else {
+        // Remove completely for this user
+        const msgs = (state.messages[chatId] || []).filter(m => m.id !== id);
+        return { ...state, messages: { ...state.messages, [chatId]: msgs } };
+      }
+    }
     default:
       return state;
   }
@@ -121,6 +136,7 @@ interface ChatContextType extends ChatState {
   loadMessages: (chatId: string) => Promise<void>;
   sendMessage: (chatId: string, text: string) => void;
   sendMediaMessage: (chatId: string, file: File, type: 'IMAGE' | 'VIDEO' | 'FILE') => Promise<void>;
+  deleteMessage: (chatId: string, messageId: string, forEveryone: boolean) => Promise<void>;
   dispatch: React.Dispatch<ChatAction>;
 }
 
@@ -194,8 +210,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       socketService.sendMessage(chatId, { clientTempId, type, attachmentId: data.attachmentId });
     } catch (err) {
       console.error('Failed to send media message:', err);
-      // Mark as failed
       dispatch({ type: 'UPDATE_MESSAGE', payload: { id: clientTempId, chatId, updates: { status: 'failed' } } });
+    }
+  }, []);
+
+  const deleteMessage = useCallback(async (chatId: string, messageId: string, forEveryone: boolean) => {
+    try {
+      await api.deleteMessage(chatId, messageId, forEveryone);
+      dispatch({ type: 'DELETE_MESSAGE', payload: { id: messageId, chatId, forEveryone } });
+    } catch (err) {
+      console.error('Failed to delete message:', err);
     }
   }, []);
 
@@ -216,8 +240,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_TYPING', payload: data });
     };
 
-    const onMessageDeleted = (data: { chatId: string; messageId: string }) => {
-      dispatch({ type: 'UPDATE_MESSAGE', payload: { id: data.messageId, chatId: data.chatId, updates: { isDeleted: true, textContent: undefined } } });
+    const onMessageDeleted = (data: { chatId: string; messageId: string; deletedForEveryone: boolean }) => {
+      dispatch({ type: 'DELETE_MESSAGE', payload: { id: data.messageId, chatId: data.chatId, forEveryone: data.deletedForEveryone } });
     };
 
     const onMessageEdited = (data: { chatId: string; messageId: string; textContent: string; editedAt: string }) => {
@@ -240,7 +264,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [isAuthenticated]);
 
   return (
-    <ChatContext.Provider value={{ ...state, loadChats, selectChat, loadMessages, sendMessage, sendMediaMessage, dispatch }}>
+    <ChatContext.Provider value={{ ...state, loadChats, selectChat, loadMessages, sendMessage, sendMediaMessage, deleteMessage, dispatch }}>
       {children}
     </ChatContext.Provider>
   );

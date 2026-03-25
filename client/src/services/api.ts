@@ -7,13 +7,13 @@ class ApiService {
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const token = this.getToken();
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...((options.headers as Record<string, string>) || {}),
-    };
+    const headers: any = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+    const url = `${API_BASE}${path}`;
+    console.log(`[API] ${options.method || 'GET'} ${url}`);
+
+    const res = await fetch(url, { ...options, headers });
 
     if (res.status === 401) {
       const refreshed = await this.refreshToken();
@@ -160,6 +160,12 @@ class ApiService {
   async getMessages(chatId: string, cursor?: string) {
     const qs = cursor ? `?cursor=${cursor}` : '';
     return this.request<any>(`/chats/${chatId}/messages${qs}`);
+  }
+
+  async deleteMessage(chatId: string, messageId: string, forEveryone: boolean) {
+    return this.request<any>(`/chats/${chatId}/messages/${messageId}?forEveryone=${forEveryone}`, {
+      method: 'DELETE',
+    });
   }
 }
 

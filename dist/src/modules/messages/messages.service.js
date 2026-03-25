@@ -23,7 +23,13 @@ let MessagesService = class MessagesService {
         this.moduleRef = moduleRef;
     }
     get chatGateway() {
-        return this.moduleRef.get('ChatGateway', { strict: false });
+        try {
+            return this.moduleRef.get('ChatGateway', { strict: false });
+        }
+        catch (e) {
+            console.warn('ChatGateway not found in moduleRef');
+            return null;
+        }
     }
     async createMessage(chatId, senderId, dto) {
         const chat = await this.prisma.chat.findUnique({
@@ -296,13 +302,15 @@ let MessagesService = class MessagesService {
                 where: { chatId, leftAt: null },
                 select: { userId: true },
             });
-            members.forEach((m) => {
-                this.chatGateway.server.to(`user:${m.userId}`).emit('message:deleted', {
-                    chatId,
-                    messageId,
-                    deletedForEveryone: true,
+            if (this.chatGateway?.server) {
+                members.forEach((m) => {
+                    this.chatGateway.server.to(`user:${m.userId}`).emit('message:deleted', {
+                        chatId,
+                        messageId,
+                        deletedForEveryone: true,
+                    });
                 });
-            });
+            }
             return { success: true, type: 'EVERYONE' };
         }
         else {

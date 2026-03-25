@@ -235,9 +235,11 @@ function ChatListItem({ chat, isActive, onClick }: { chat: any; isActive: boolea
 
 // ===== CONVERSATION COMPONENT =====
 function Conversation() {
-  const { activeChat, messages, loadMessages, sendMessage, sendMediaMessage, typingUsers } = useChat();
+  const { activeChat, messages, loadMessages, sendMessage, sendMediaMessage, deleteMessage, typingUsers } = useChat();
   const { user } = useAuth();
   const [input, setInput] = useState('');
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -354,7 +356,7 @@ function Conversation() {
                 </div>
               )}
               <div className={`message-row ${isSent ? 'sent' : 'received'}`}>
-                <div className={`message-bubble ${msg.type === 'IMAGE' || (msg as any).attachment ? 'media-bubble' : ''}`}>
+                <div className={`message-bubble ${msg.type === 'IMAGE' || (msg as any).attachment ? 'media-bubble' : ''} ${msg.textContent ? 'has-text' : ''}`}>
                   {msg.isDeleted ? (
                     <span className="message-deleted">🚫 This message was deleted</span>
                   ) : (
@@ -363,26 +365,55 @@ function Conversation() {
                       {(msg.type === 'IMAGE' || (msg as any).attachment?.mimeType?.startsWith('image/')) && (() => {
                         const imgSrc = msg.attachmentUrl || 
                           ((msg as any).attachment?.storageKey ? `http://localhost:3000/uploads/${(msg as any).attachment.storageKey}` : null);
-                        return imgSrc ? (
-                         <div className="message-media-container">
-                           <img 
-                             src={imgSrc} 
-                             alt="Attachment" 
-                             className="message-image" 
-                             style={{ filter: msg.status === 'sending' ? 'brightness(0.7)' : 'none' }}
-                           />
-                         </div>
-                        ) : null;
+                         return imgSrc ? (
+                          <div className="message-media-container" onClick={() => setPreviewImageUrl(imgSrc)} style={{ cursor: 'pointer' }}>
+                            <img 
+                              src={imgSrc} 
+                              alt="Attachment" 
+                              className="message-image" 
+                              style={{ 
+                                filter: msg.status === 'sending' ? 'brightness(0.7)' : 'none'
+                              }}
+                            />
+                          </div>
+                         ) : null;
                       })()}
 
                       {msg.textContent && <span className="message-text">{msg.textContent}</span>}
                       <span className="message-meta">
                         {msg.editedAt && <span className="message-edited">edited</span>}
                         <span className="message-time">{formatTime(msg.createdAt)}</span>
-                        {isSent && (
+                         {isSent && (
                           <span className={`message-status ${msg.status || 'sent'}`}>
                             {msg.status === 'sending' ? '🕐' : msg.status === 'read' ? '✓✓' : '✓'}
                           </span>
+                        )}
+                        <button 
+                          className="message-options-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenMenuId(openMenuId === msg.id ? null : msg.id);
+                          }}
+                        >
+                          ⌄
+                        </button>
+                        {openMenuId === msg.id && (
+                          <div className="message-menu">
+                            <button 
+                              disabled={msg.status === 'sending'}
+                              onClick={() => { if (msg.status !== 'sending') { deleteMessage(activeChat!.id, msg.id, false); setOpenMenuId(null); } }}
+                            >
+                              Delete for me
+                            </button>
+                            {isSent && !msg.isDeleted && (
+                              <button 
+                                disabled={msg.status === 'sending'}
+                                onClick={() => { if (msg.status !== 'sending') { deleteMessage(activeChat!.id, msg.id, true); setOpenMenuId(null); } }}
+                              >
+                                Delete for everyone
+                              </button>
+                            )}
+                          </div>
                         )}
                       </span>
                     </>
@@ -433,6 +464,16 @@ function Conversation() {
           ➤
         </button>
       </div>
+
+      {/* Lightbox */}
+      {previewImageUrl && (
+        <div className="lightbox-overlay" onClick={() => setPreviewImageUrl(null)}>
+          <div className="lightbox-content" onClick={e => e.stopPropagation()}>
+            <img src={previewImageUrl} alt="Preview" />
+            <button className="lightbox-close" onClick={() => setPreviewImageUrl(null)}>✕</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

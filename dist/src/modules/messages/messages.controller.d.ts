@@ -6,11 +6,6 @@ export declare class MessagesController {
     constructor(messagesService: MessagesService);
     getMessages(chatId: string, query: GetMessagesQueryDto, user: JwtPayload): Promise<{
         items: ({
-            sender: {
-                id: string;
-                displayName: string;
-                avatarUrl: string | null;
-            };
             attachment: {
                 id: string;
                 createdAt: Date;
@@ -24,20 +19,25 @@ export declare class MessagesController {
                 durationSeconds: number | null;
                 thumbnailKey: string | null;
             } | null;
+            sender: {
+                id: string;
+                displayName: string;
+                avatarUrl: string | null;
+            };
             receipts: {
                 userId: string;
-                seenAt: Date | null;
                 deliveredAt: Date | null;
+                seenAt: Date | null;
             }[];
         } & {
             id: string;
-            createdAt: Date;
-            type: import(".prisma/client").$Enums.MessageType;
             clientTempId: string | null;
+            type: import(".prisma/client").$Enums.MessageType;
             textContent: string | null;
             replyToMessageId: string | null;
             status: import(".prisma/client").$Enums.MessageStatus;
             isDeleted: boolean;
+            createdAt: Date;
             editedAt: Date | null;
             chatId: string;
             senderId: string;
@@ -46,11 +46,6 @@ export declare class MessagesController {
         nextCursor: string | null;
     }>;
     sendMessage(chatId: string, dto: SendMessageDto, user: JwtPayload): Promise<{
-        sender: {
-            id: string;
-            displayName: string;
-            avatarUrl: string | null;
-        };
         attachment: {
             id: string;
             createdAt: Date;
@@ -64,20 +59,25 @@ export declare class MessagesController {
             durationSeconds: number | null;
             thumbnailKey: string | null;
         } | null;
+        sender: {
+            id: string;
+            displayName: string;
+            avatarUrl: string | null;
+        };
         receipts: {
             userId: string;
-            seenAt: Date | null;
             deliveredAt: Date | null;
+            seenAt: Date | null;
         }[];
     } & {
         id: string;
-        createdAt: Date;
-        type: import(".prisma/client").$Enums.MessageType;
         clientTempId: string | null;
+        type: import(".prisma/client").$Enums.MessageType;
         textContent: string | null;
         replyToMessageId: string | null;
         status: import(".prisma/client").$Enums.MessageStatus;
         isDeleted: boolean;
+        createdAt: Date;
         editedAt: Date | null;
         chatId: string;
         senderId: string;
@@ -89,13 +89,13 @@ export declare class MessagesController {
     }>;
     editMessage(chatId: string, messageId: string, dto: EditMessageDto, user: JwtPayload): Promise<{
         id: string;
-        createdAt: Date;
-        type: import(".prisma/client").$Enums.MessageType;
         clientTempId: string | null;
+        type: import(".prisma/client").$Enums.MessageType;
         textContent: string | null;
         replyToMessageId: string | null;
         status: import(".prisma/client").$Enums.MessageStatus;
         isDeleted: boolean;
+        createdAt: Date;
         editedAt: Date | null;
         chatId: string;
         senderId: string;

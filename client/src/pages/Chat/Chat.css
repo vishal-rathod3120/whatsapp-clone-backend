@@ -345,7 +345,7 @@
 }
 
 /* Float meta over the image if there's no text, or place normally but with adjusted colors */
-.media-bubble:not(:has(.message-text)) .message-meta {
+.media-bubble:not(.has-text) .message-meta {
   position: absolute;
   bottom: 8px;
   right: 12px;
@@ -354,14 +354,15 @@
   border-radius: 12px;
   color: white;
   margin-top: 0;
+  z-index: 10;
 }
 
-.media-bubble:not(:has(.message-text)) .message-time,
-.media-bubble:not(:has(.message-text)) .message-status {
+.media-bubble:not(.has-text) .message-time,
+.media-bubble:not(.has-text) .message-status {
   color: rgba(255, 255, 255, 0.9) !important;
 }
 
-.media-bubble:not(:has(.message-text)) .message-status.read {
+.media-bubble:not(.has-text) .message-status.read {
   color: #53bdeb !important;
 }
 
@@ -377,10 +378,10 @@
   align-items: center;
   gap: 4px;
   justify-content: flex-end;
-  margin-top: -10px;
-  float: right;
+  margin-top: 4px;
   position: relative;
-  top: 6px;
+  float: right;
+  min-height: 20px;
 }
 
 .message-time {
@@ -553,3 +554,94 @@
   .chat-layout.chat-open .conversation-panel { display: flex; }
   .messages-area { padding: 12px 16px; }
 }
+
+/* ===== LIGHTBOX ===== */
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn var(--transition-fast);
+}
+
+.lightbox-content {
+  position: relative;
+  max-width: 90%;
+  max-height: 90%;
+}
+
+.lightbox-content img {
+  max-width: 100%;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+
+.lightbox-close {
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 32px;
+  cursor: pointer;
+}
+
+/* ===== MESSAGE OPTIONS ===== */
+.message-options-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0 4px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  margin-left: 2px;
+}
+
+.message-bubble:hover .message-options-btn {
+  opacity: 1;
+}
+
+.message-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--bg-panel);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 15rem;
+  padding: 4px 0;
+  margin-top: 4px;
+  border: 1px solid var(--border-color);
+}
+
+.message-menu button {
+  padding: 10px 16px;
+  text-align: left;
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.message-menu button:hover {
+  background: var(--bg-hover);
+}
+
+.message-menu button:last-child {
+  color: #f15c5c;
+}
+
