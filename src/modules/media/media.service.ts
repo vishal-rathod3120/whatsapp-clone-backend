@@ -1,7 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
-import { S3Storage } from './storage/s3.storage';
+import { StorageInterface } from './storage/storage.interface';
 import * as sharp from 'sharp';
 import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
@@ -12,7 +12,7 @@ export class MediaService {
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
-    private s3Storage: S3Storage,
+    @Inject('StorageInterface') private storage: StorageInterface,
   ) {}
 
   async createAttachment(
@@ -25,16 +25,16 @@ export class MediaService {
 
     // Upload main file to storage
     const mainBuffer = readFileSync(file.path);
-    await this.s3Storage.upload(mainBuffer, storageKey, file.mimetype);
+    await this.storage.upload(mainBuffer, storageKey, file.mimetype);
 
     // Upload thumbnail to storage
     if (metadata.thumbnailKey) {
       const thumbPath = join(file.destination, metadata.thumbnailKey);
       try {
         const thumbBuffer = readFileSync(thumbPath);
-        await this.s3Storage.upload(thumbBuffer, metadata.thumbnailKey, 'image/webp');
-      } catch (e) {
-        Logger.warn(`Failed to upload thumbnail to S3: ${e.message}`);
+        await this.storage.upload(thumbBuffer, metadata.thumbnailKey, 'image/webp');
+      } catch (e: any) {
+        Logger.warn(`Failed to upload thumbnail: ${e.message}`);
       }
     }
 
@@ -114,6 +114,11 @@ export class MediaService {
   }
 
   async getSignedUrl(storageKey: string, expiresIn: number = 900): Promise<string> {
-    return this.s3Storage.getSignedDownloadUrl(storageKey, expiresIn);
+    if (typeof this.storage.getSignedDownloadUrl === 'function') {
+      return this.storage.getSignedDownloadUrl(storageKey, expiresIn);
+    }
+    // Fallback for LocalStorage which doesn't implement getSignedDownloadUrl natively
+    const baseUrl = this.configService.get('storage.publicUrl') || 'http://localhost:3000/uploads';
+    return `${baseUrl}/${storageKey}`;
   }
 }

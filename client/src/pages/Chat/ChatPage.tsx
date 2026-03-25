@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState, KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useChat } from '../../context/ChatContext';
 import { useTheme } from '../../context/ThemeContext';
 import { api } from '../../services/api';
 import { socketService } from '../../services/socket';
 import { NewGroupModal } from '../../components/NewGroupModal';
+import { ProfilePanel } from '../../components/ProfilePanel';
 import './Chat.css';
 
 function formatTime(dateStr: string) {
@@ -37,6 +38,7 @@ function Sidebar() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
 
   useEffect(() => { loadChats(); }, [loadChats]);
 
@@ -85,7 +87,7 @@ function Sidebar() {
     <div className="sidebar">
       <div className="sidebar-header">
         <div className="sidebar-header-left">
-          <div className="chat-avatar" style={{ width: 36, height: 36, fontSize: 14 }}>
+          <div className="chat-avatar" style={{ width: 36, height: 36, fontSize: 14, cursor: 'pointer' }} onClick={() => setShowProfile(true)}>
             {user?.avatarUrl ? <img src={user.avatarUrl} alt="" /> : getInitials(user?.displayName)}
           </div>
           <h2>Chats</h2>
@@ -186,6 +188,10 @@ function Sidebar() {
           }}
         />
       )}
+
+      {showProfile && (
+        <ProfilePanel onClose={() => setShowProfile(false)} />
+      )}
     </div>
   );
 }
@@ -233,7 +239,7 @@ function Conversation() {
   const { user } = useAuth();
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const typingTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const typingTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const chatMessages = activeChat ? (messages[activeChat.id] || []) : [];
   const typingInChat = activeChat ? (typingUsers[activeChat.id] || []) : [];
 

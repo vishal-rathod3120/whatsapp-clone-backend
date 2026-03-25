@@ -23,11 +23,11 @@ export declare class CallsService {
                 })[];
             } & {
                 id: string;
-                title: string | null;
                 avatarUrl: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 type: import(".prisma/client").$Enums.ChatType;
+                title: string | null;
                 createdById: string;
                 lastMessageId: string | null;
                 lastMessageAt: Date | null;
@@ -52,9 +52,9 @@ export declare class CallsService {
             })[];
         } & {
             id: string;
-            status: import(".prisma/client").$Enums.CallStatus;
             createdAt: Date;
             type: import(".prisma/client").$Enums.CallType;
+            status: import(".prisma/client").$Enums.CallStatus;
             chatId: string;
             callerId: string;
             startedAt: Date | null;
@@ -84,11 +84,11 @@ export declare class CallsService {
             })[];
         } & {
             id: string;
-            title: string | null;
             avatarUrl: string | null;
             createdAt: Date;
             updatedAt: Date;
             type: import(".prisma/client").$Enums.ChatType;
+            title: string | null;
             createdById: string;
             lastMessageId: string | null;
             lastMessageAt: Date | null;
@@ -113,9 +113,9 @@ export declare class CallsService {
         })[];
     } & {
         id: string;
-        status: import(".prisma/client").$Enums.CallStatus;
         createdAt: Date;
         type: import(".prisma/client").$Enums.CallType;
+        status: import(".prisma/client").$Enums.CallStatus;
         chatId: string;
         callerId: string;
         startedAt: Date | null;

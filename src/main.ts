@@ -4,6 +4,8 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
 import * as compression from 'compression';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
 
 process.on('unhandledRejection', (reason, promise) => {
   console.log('Unhandled Rejection at:', promise, 'reason:', reason);
@@ -11,7 +13,7 @@ process.on('unhandledRejection', (reason, promise) => {
 
 async function bootstrap() {
   try {
-    const app = await NestFactory.create(AppModule, {
+    const app = await NestFactory.create<NestExpressApplication>(AppModule, {
       abortOnError: false,
       logger: {
         log: console.log,
@@ -23,8 +25,15 @@ async function bootstrap() {
       }
     });
 
+  // Serve uploaded files statically
+  app.useStaticAssets(join(process.cwd(), 'uploads'), {
+    prefix: '/uploads',
+  });
+
   // Security
-  app.use(helmet());
+  app.use(helmet({
+    crossOriginResourcePolicy: false,
+  }));
   app.use(compression());
 
   // CORS

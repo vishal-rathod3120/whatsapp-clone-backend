@@ -1,4 +1,4 @@
-import { Controller, Post, Get, UseInterceptors, UploadedFile, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, UseInterceptors, UploadedFile, Body, Param, Query, UseGuards, HttpException, HttpStatus } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBearerAuth } from '@nestjs/swagger';
 import { diskStorage } from 'multer';
@@ -38,21 +38,29 @@ export class MediaController {
     @Body('type') type: string,
     @CurrentUser() user: JwtPayload
   ) {
-    const storageKey = file.filename;
-    const attachment = await this.mediaService.createAttachment(
-      user.sub,
-      file,
-      storageKey,
-    );
+    try {
+      const storageKey = file.filename;
+      const attachment = await this.mediaService.createAttachment(
+        user.sub,
+        file,
+        storageKey,
+      );
 
-    const signedUrl = await this.mediaService.getSignedUrl(storageKey, 900);
+      const signedUrl = await this.mediaService.getSignedUrl(storageKey, 900);
 
-    return {
-      attachmentId: attachment.id,
-      url: signedUrl,
-      mimeType: file.mimetype,
-      size: file.size,
-    };
+      return {
+        attachmentId: attachment.id,
+        url: signedUrl,
+        mimeType: file.mimetype,
+        size: file.size,
+      };
+    } catch (err: any) {
+      console.error('UPLOAD ERROR:', err);
+      throw new HttpException(
+        { message: 'Upload failed', error: err.message, stack: err.stack },
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
   }
 
   @Get('download/:attachmentId')

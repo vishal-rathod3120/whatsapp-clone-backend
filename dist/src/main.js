@@ -6,6 +6,7 @@ const swagger_1 = require("@nestjs/swagger");
 const app_module_1 = require("./app.module");
 const helmet_1 = require("helmet");
 const compression = require("compression");
+const path_1 = require("path");
 process.on('unhandledRejection', (reason, promise) => {
     console.log('Unhandled Rejection at:', promise, 'reason:', reason);
 });
@@ -22,7 +23,12 @@ async function bootstrap() {
                 fatal: console.error,
             }
         });
-        app.use((0, helmet_1.default)());
+        app.useStaticAssets((0, path_1.join)(process.cwd(), 'uploads'), {
+            prefix: '/uploads',
+        });
+        app.use((0, helmet_1.default)({
+            crossOriginResourcePolicy: false,
+        }));
         app.use(compression());
         app.enableCors({
             origin: process.env.CORS_ORIGIN || '*',

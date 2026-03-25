@@ -27,15 +27,21 @@ let MediaController = class MediaController {
         this.mediaService = mediaService;
     }
     async uploadFile(file, type, user) {
-        const storageKey = file.filename;
-        const attachment = await this.mediaService.createAttachment(user.sub, file, storageKey);
-        const signedUrl = await this.mediaService.getSignedUrl(storageKey, 900);
-        return {
-            attachmentId: attachment.id,
-            url: signedUrl,
-            mimeType: file.mimetype,
-            size: file.size,
-        };
+        try {
+            const storageKey = file.filename;
+            const attachment = await this.mediaService.createAttachment(user.sub, file, storageKey);
+            const signedUrl = await this.mediaService.getSignedUrl(storageKey, 900);
+            return {
+                attachmentId: attachment.id,
+                url: signedUrl,
+                mimeType: file.mimetype,
+                size: file.size,
+            };
+        }
+        catch (err) {
+            console.error('UPLOAD ERROR:', err);
+            throw new common_1.HttpException({ message: 'Upload failed', error: err.message, stack: err.stack }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
     async getDownloadUrl(attachmentId, expiresIn) {
         const attachment = await this.mediaService.getAttachmentById(attachmentId);

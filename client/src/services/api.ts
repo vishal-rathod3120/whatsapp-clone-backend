@@ -89,6 +89,30 @@ class ApiService {
   // Users
   async getProfile() { return this.request<any>('/users/me'); }
   async updateProfile(data: any) { return this.request<any>('/users/me', { method: 'PATCH', body: JSON.stringify(data) }); }
+  async uploadAvatar(file: File) {
+    const token = this.getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', 'IMAGE');
+    const res = await fetch(`${API_BASE}/media/upload`, {
+      method: 'POST',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      body: formData,
+    });
+    
+    if (!res.ok) {
+        const errText = await res.text();
+        console.error('BACKEND ERROR PAYLOAD:', errText);
+        throw new Error('Upload failed: ' + errText);
+    }
+    const data = await res.json();
+    // The backend stores the file locally. Build the accessible URL.
+    // data.url may be a signed S3 url or undefined if using local storage.
+    // For local, the file is served at /uploads/<filename> via static assets.
+    const avatarUrl = data.url || `http://localhost:3000/uploads/${data.attachmentId}`;
+    await this.updateProfile({ avatarUrl });
+    return data;
+  }
   async searchUsers(query: string) { return this.request<any>(`/users/search?q=${encodeURIComponent(query)}`); }
 
   // Chats
