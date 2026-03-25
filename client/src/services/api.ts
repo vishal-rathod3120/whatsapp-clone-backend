@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:3000/api/v1';
+const API_BASE = '/api/v1';
 
 class ApiService {
   private getToken(): string | null {
@@ -115,7 +115,7 @@ class ApiService {
     // The backend stores the file locally. Build the accessible URL.
     // data.url may be a signed S3 url or undefined if using local storage.
     // For local, the file is served at /uploads/<filename> via static assets.
-    const avatarUrl = data.url || `http://localhost:3000/uploads/${data.attachmentId}`;
+    const avatarUrl = data.url || `/uploads/${data.attachmentId}`;
     await this.updateProfile({ avatarUrl });
     return data;
   }

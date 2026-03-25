@@ -4,6 +4,13 @@ import { api } from '../services/api';
 import { socketService } from '../services/socket';
 import { useAuth } from './AuthContext';
 
+function generateClientId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Date.now().toString(36) + Math.random().toString(36).substring(2);
+}
+
 interface Message {
   id: string;
   chatId: string;
@@ -209,7 +216,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const sendMessage = useCallback((chatId: string, text: string, replyToMessageId?: string) => {
-    const clientTempId = crypto.randomUUID();
+    const clientTempId = generateClientId();
     const optimistic: Message = {
       id: clientTempId,
       chatId,
@@ -225,7 +232,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const sendMediaMessage = useCallback(async (chatId: string, file: File, type: 'IMAGE' | 'VIDEO' | 'FILE') => {
-    const clientTempId = crypto.randomUUID();
+    const clientTempId = generateClientId();
     const objectUrl = URL.createObjectURL(file);
     
     const optimistic: Message = {
