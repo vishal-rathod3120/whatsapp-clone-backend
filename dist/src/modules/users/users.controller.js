@@ -29,6 +29,11 @@ let UsersController = class UsersController {
     async updateMe(dto, user) {
         return this.usersService.updateProfile(user.sub, dto);
     }
+    async searchUsers(query, user) {
+        if (!query)
+            return [];
+        return this.usersService.searchUsers(query, user.sub);
+    }
     async getUserById(id) {
         return this.usersService.findById(id);
     }
@@ -57,6 +62,15 @@ __decorate([
     __metadata("design:paramtypes", [update_profile_dto_1.UpdateProfileDto, Object]),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "updateMe", null);
+__decorate([
+    (0, common_1.Get)('search'),
+    (0, swagger_1.ApiOperation)({ summary: 'Search users by phone or name' }),
+    __param(0, (0, common_1.Query)('q')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "searchUsers", null);
 __decorate([
     (0, common_1.Get)(':id'),
     (0, swagger_1.ApiOperation)({ summary: 'Get user by ID' }),

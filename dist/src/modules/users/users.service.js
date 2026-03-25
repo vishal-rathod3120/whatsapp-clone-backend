@@ -35,6 +35,30 @@ let UsersService = class UsersService {
         }
         return user;
     }
+    async searchUsers(query, currentUserId) {
+        const users = await this.prisma.user.findMany({
+            where: {
+                AND: [
+                    { id: { not: currentUserId } },
+                    {
+                        OR: [
+                            { phoneNumber: { contains: query, mode: 'insensitive' } },
+                            { displayName: { contains: query, mode: 'insensitive' } },
+                        ],
+                    },
+                ],
+            },
+            select: {
+                id: true,
+                displayName: true,
+                phoneNumber: true,
+                avatarUrl: true,
+                aboutText: true,
+            },
+            take: 20,
+        });
+        return users;
+    }
     async updateProfile(userId, dto) {
         const user = await this.prisma.user.update({
             where: { id: userId },

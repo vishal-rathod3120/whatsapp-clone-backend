@@ -24,6 +24,13 @@ export declare class UsersController {
         isVerified: boolean;
         updatedAt: Date;
     }>;
+    searchUsers(query: string, user: JwtPayload): Promise<{
+        id: string;
+        phoneNumber: string | null;
+        displayName: string;
+        avatarUrl: string | null;
+        aboutText: string | null;
+    }[]>;
     getUserById(id: string): Promise<{
         id: string;
         phoneNumber: string | null;

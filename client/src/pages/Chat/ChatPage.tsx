@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, KeyboardEvent } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useChat } from '../../context/ChatContext';
 import { useTheme } from '../../context/ThemeContext';
+import { api } from '../../services/api';
 import { socketService } from '../../services/socket';
 import './Chat.css';
 
@@ -32,8 +33,47 @@ function Sidebar() {
   const { chats, loadChats, selectChat, activeChat, isLoadingChats } = useChat();
   const { theme, toggleTheme } = useTheme();
   const [search, setSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => { loadChats(); }, [loadChats]);
+
+  // Handle user search when input changes
+  useEffect(() => {
+    if (!search.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const users = await api.searchUsers(search);
+        setSearchResults(users || []);
+      } catch (err) {
+        console.error('Search failed', err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const handleStartChat = async (userId: string) => {
+    try {
+      const data = await api.createDirectChat(userId);
+      // The backend returns a complex response depending on the previous codebase,
+      // it might be { message: "...", data: Chat } or just the Chat.
+      const newChat = data.chat || data.data || data;
+      await loadChats();
+      // Find the loaded chat object and select it
+      const chatsAfterLoad = await api.getChatList();
+      const loaded = (chatsAfterLoad.items || chatsAfterLoad).find((c: any) => c.id === newChat.id);
+      if (loaded) selectChat(loaded);
+      setSearch('');
+    } catch (err) {
+      console.error('Failed to start chat', err);
+    }
+  };
 
   const filtered = chats.filter(c =>
     !search || (c.title || '').toLowerCase().includes(search.toLowerCase())
@@ -70,23 +110,67 @@ function Sidebar() {
       </div>
 
       <div className="chat-list">
-        {isLoadingChats ? (
-          <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-secondary)' }}>
-            Loading chats...
-          </div>
-        ) : filtered.length === 0 ? (
-          <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-secondary)' }}>
-            {search ? 'No chats found' : 'No conversations yet'}
-          </div>
+        {search.trim() ? (
+          // Search Results View
+          <>
+            <div style={{ padding: '8px 16px', fontSize: 13, fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase' }}>
+              Contacts
+            </div>
+            {isSearching ? (
+              <div style={{ padding: 16, textAlign: 'center', color: 'var(--text-secondary)' }}>Searching...</div>
+            ) : searchResults.length === 0 ? (
+              <div style={{ padding: 16, textAlign: 'center', color: 'var(--text-secondary)' }}>No contacts found</div>
+            ) : (
+              searchResults.map(userItem => (
+                <div key={userItem.id} className="chat-list-item" onClick={() => handleStartChat(userItem.id)}>
+                  <div className="chat-avatar">
+                    {userItem.avatarUrl ? <img src={userItem.avatarUrl} alt="" /> : getInitials(userItem.displayName)}
+                  </div>
+                  <div className="chat-info">
+                    <div className="chat-info-top">
+                      <span className="chat-name">{userItem.displayName}</span>
+                    </div>
+                    <div className="chat-preview">
+                      <span className="chat-last-message">{userItem.phoneNumber}</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+            {filtered.length > 0 && (
+              <div style={{ padding: '8px 16px', fontSize: 13, fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', borderTop: '1px solid var(--border-light)', marginTop: 8 }}>
+                Existing Chats
+              </div>
+            )}
+            {filtered.map(chat => (
+              <ChatListItem
+                key={chat.id}
+                chat={chat}
+                isActive={activeChat?.id === chat.id}
+                onClick={() => selectChat(chat)}
+              />
+            ))}
+          </>
         ) : (
-          filtered.map(chat => (
-            <ChatListItem
-              key={chat.id}
-              chat={chat}
-              isActive={activeChat?.id === chat.id}
-              onClick={() => selectChat(chat)}
-            />
-          ))
+          // Normal Chat List View
+          isLoadingChats ? (
+            <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-secondary)' }}>
+              Loading chats...
+            </div>
+          ) : chats.length === 0 ? (
+            <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-secondary)' }}>
+              No conversations yet
+            </div>
+          ) : (
+            chats.map(chat => (
+              <ChatListItem
+                key={chat.id}
+                chat={chat}
+                isActive={activeChat?.id === chat.id}
+                onClick={() => selectChat(chat)}
+              />
+            ))
+          )
         )}
       </div>
     </div>

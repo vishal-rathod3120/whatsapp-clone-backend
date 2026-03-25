@@ -13,6 +13,13 @@ export declare class UsersService {
         isVerified: boolean;
         createdAt: Date;
     }>;
+    searchUsers(query: string, currentUserId: string): Promise<{
+        id: string;
+        phoneNumber: string | null;
+        displayName: string;
+        avatarUrl: string | null;
+        aboutText: string | null;
+    }[]>;
     updateProfile(userId: string, dto: UpdateProfileDto): Promise<{
         id: string;
         phoneNumber: string | null;
