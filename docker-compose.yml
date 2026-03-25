@@ -5,15 +5,15 @@ services:
     image: postgres:16-alpine
     container_name: whatsapp-postgres
     environment:
-      POSTGRES_USER: ${DB_USER:-whatsapp}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-whatsapp123}
-      POSTGRES_DB: ${DB_NAME:-whatsapp_db}
+      POSTGRES_USER: whatsapp
+      POSTGRES_PASSWORD: whatsapp123
+      POSTGRES_DB: whatsapp_db
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-whatsapp} -d ${DB_NAME:-whatsapp_db}"]
+      test: ["CMD-SHELL", "pg_isready -U whatsapp -d whatsapp_db"]
       interval: 10s
       timeout: 5s
       retries: 5
