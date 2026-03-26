@@ -11,6 +11,7 @@ const common_1 = require("@nestjs/common");
 const chats_controller_1 = require("./chats.controller");
 const chats_service_1 = require("./chats.service");
 const media_module_1 = require("../media/media.module");
+const disappearing_messages_cron_1 = require("./disappearing-messages.cron");
 let ChatsModule = class ChatsModule {
 };
 exports.ChatsModule = ChatsModule;
@@ -18,7 +19,7 @@ exports.ChatsModule = ChatsModule = __decorate([
     (0, common_1.Module)({
         imports: [media_module_1.MediaModule],
         controllers: [chats_controller_1.ChatsController],
-        providers: [chats_service_1.ChatsService],
+        providers: [chats_service_1.ChatsService, disappearing_messages_cron_1.DisappearingMessagesCron],
         exports: [chats_service_1.ChatsService],
     })
 ], ChatsModule);

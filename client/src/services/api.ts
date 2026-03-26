@@ -106,6 +106,16 @@ class ApiService {
   async getContactStatuses() { return this.request<any>('/status/contacts'); }
   async markStatusViewed(statusId: string) { return this.request<any>(`/status/${statusId}/view`, { method: 'POST' }); }
   async deleteStatus(statusId: string) { return this.request<any>(`/status/${statusId}`, { method: 'DELETE' }); }
+
+  // Block
+  async blockUser(userId: string) { return this.request<any>(`/users/block/${userId}`, { method: 'POST' }); }
+  async unblockUser(userId: string) { return this.request<any>(`/users/block/${userId}`, { method: 'DELETE' }); }
+  async getUser(userId: string) { return this.request<any>(`/users/${userId}`); }
+  
+  // Link Preview
+  async getLinkPreview(chatId: string, url: string) { 
+    return this.request<any>(`/chats/${chatId}/messages/link-preview?url=${encodeURIComponent(url)}`); 
+  }
   async getCallHistory(cursor?: string) {
     const qs = cursor ? `?cursor=${cursor}` : '';
     return this.request<any>(`/calls${qs}`);
@@ -136,7 +146,7 @@ class ApiService {
     return data;
   }
   
-  async uploadMedia(file: File, type: 'IMAGE' | 'VIDEO' | 'FILE' = 'IMAGE') {
+  async uploadMedia(file: File, type: 'IMAGE' | 'VIDEO' | 'FILE' | 'AUDIO' = 'IMAGE') {
     const token = this.getToken();
     const formData = new FormData();
     formData.append('file', file);
@@ -188,6 +198,29 @@ class ApiService {
     return this.request<any>(`/chats/${chatId}`, {
       method: 'DELETE',
     });
+  }
+
+  async updateDisappearingTimer(chatId: string, timer: number | null) {
+    return this.request<any>(`/chats/${chatId}/disappearing-messages`, {
+      method: 'PATCH',
+      body: JSON.stringify({ timer }),
+    });
+  }
+
+  async starMessage(chatId: string, messageId: string) {
+    return this.request<any>(`/chats/${chatId}/messages/${messageId}/star`, {
+      method: 'POST',
+    });
+  }
+
+  async unstarMessage(chatId: string, messageId: string) {
+    return this.request<any>(`/chats/${chatId}/messages/${messageId}/star`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getStarredMessages() {
+    return this.request<any>(`/chats/dummy/messages/starred`);
   }
 
   // Group Management

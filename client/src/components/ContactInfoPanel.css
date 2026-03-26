@@ -285,6 +285,13 @@
   background: rgba(241, 92, 92, 0.08);
 }
 
+.contact-info-action-btn.success {
+  color: var(--accent, #00a884);
+}
+.contact-info-action-btn.success:hover {
+  background: rgba(0, 168, 132, 0.08);
+}
+
 /* Responsive */
 @media (max-width: 900px) {
   .contact-info-panel {

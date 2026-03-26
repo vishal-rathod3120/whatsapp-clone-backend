@@ -67,6 +67,11 @@ let MessagesService = class MessagesService {
                 throw new common_1.NotFoundException('Reply message not found in this chat');
             }
         }
+        let expiresAt;
+        if (chat.disappearingTimer) {
+            expiresAt = new Date();
+            expiresAt.setSeconds(expiresAt.getSeconds() + chat.disappearingTimer);
+        }
         const message = await this.prisma.$transaction(async (tx) => {
             const msg = await tx.message.create({
                 data: {
@@ -79,6 +84,7 @@ let MessagesService = class MessagesService {
                     attachmentId: dto.attachmentId,
                     replyToMessageId: dto.replyToMessageId,
                     status: enums_1.MessageStatus.SENT,
+                    expiresAt,
                 },
             });
             await tx.chat.update({

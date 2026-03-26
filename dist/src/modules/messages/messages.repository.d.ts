@@ -14,12 +14,13 @@ export declare class MessagesRepository {
     }): Promise<{
         sender: {
             id: string;
-            displayName: string;
             avatarUrl: string | null;
+            displayName: string;
         };
         attachment: {
             id: string;
             createdAt: Date;
+            uploaderId: string;
             storageKey: string;
             originalName: string | null;
             mimeType: string;
@@ -28,7 +29,6 @@ export declare class MessagesRepository {
             height: number | null;
             durationSeconds: number | null;
             thumbnailKey: string | null;
-            uploaderId: string;
         } | null;
         receipts: {
             userId: string;
@@ -37,27 +37,29 @@ export declare class MessagesRepository {
         }[];
     } & {
         id: string;
-        createdAt: Date;
         type: import(".prisma/client").$Enums.MessageType;
-        status: import(".prisma/client").$Enums.MessageStatus;
+        createdAt: Date;
         chatId: string;
+        senderId: string;
         clientTempId: string | null;
         textContent: string | null;
-        isDeleted: boolean;
-        editedAt: Date | null;
-        senderId: string;
         replyToMessageId: string | null;
         attachmentId: string | null;
+        status: import(".prisma/client").$Enums.MessageStatus;
+        isDeleted: boolean;
+        editedAt: Date | null;
+        expiresAt: Date | null;
     }>;
     findById(messageId: string): Promise<({
         sender: {
             id: string;
-            displayName: string;
             avatarUrl: string | null;
+            displayName: string;
         };
         attachment: {
             id: string;
             createdAt: Date;
+            uploaderId: string;
             storageKey: string;
             originalName: string | null;
             mimeType: string;
@@ -66,7 +68,6 @@ export declare class MessagesRepository {
             height: number | null;
             durationSeconds: number | null;
             thumbnailKey: string | null;
-            uploaderId: string;
         } | null;
         receipts: {
             userId: string;
@@ -75,27 +76,29 @@ export declare class MessagesRepository {
         }[];
     } & {
         id: string;
-        createdAt: Date;
         type: import(".prisma/client").$Enums.MessageType;
-        status: import(".prisma/client").$Enums.MessageStatus;
+        createdAt: Date;
         chatId: string;
+        senderId: string;
         clientTempId: string | null;
         textContent: string | null;
-        isDeleted: boolean;
-        editedAt: Date | null;
-        senderId: string;
         replyToMessageId: string | null;
         attachmentId: string | null;
+        status: import(".prisma/client").$Enums.MessageStatus;
+        isDeleted: boolean;
+        editedAt: Date | null;
+        expiresAt: Date | null;
     }) | null>;
     findByChatId(chatId: string, userId: string, limit: number, cursor?: string): Promise<({
         sender: {
             id: string;
-            displayName: string;
             avatarUrl: string | null;
+            displayName: string;
         };
         attachment: {
             id: string;
             createdAt: Date;
+            uploaderId: string;
             storageKey: string;
             originalName: string | null;
             mimeType: string;
@@ -104,7 +107,6 @@ export declare class MessagesRepository {
             height: number | null;
             durationSeconds: number | null;
             thumbnailKey: string | null;
-            uploaderId: string;
         } | null;
         receipts: {
             userId: string;
@@ -113,17 +115,18 @@ export declare class MessagesRepository {
         }[];
     } & {
         id: string;
-        createdAt: Date;
         type: import(".prisma/client").$Enums.MessageType;
-        status: import(".prisma/client").$Enums.MessageStatus;
+        createdAt: Date;
         chatId: string;
+        senderId: string;
         clientTempId: string | null;
         textContent: string | null;
-        isDeleted: boolean;
-        editedAt: Date | null;
-        senderId: string;
         replyToMessageId: string | null;
         attachmentId: string | null;
+        status: import(".prisma/client").$Enums.MessageStatus;
+        isDeleted: boolean;
+        editedAt: Date | null;
+        expiresAt: Date | null;
     })[]>;
     createReceipts(messageId: string, userIds: string[]): Promise<import(".prisma/client").Prisma.BatchPayload>;
     markAsDelivered(messageId: string, userId: string): Promise<import(".prisma/client").Prisma.BatchPayload>;

@@ -6,40 +6,40 @@ export declare class UsersController {
     constructor(usersService: UsersService);
     getMe(user: JwtPayload): Promise<{
         id: string;
+        avatarUrl: string | null;
+        createdAt: Date;
         phoneNumber: string | null;
         email: string | null;
         displayName: string;
-        avatarUrl: string | null;
         aboutText: string | null;
         isVerified: boolean;
-        createdAt: Date;
     }>;
     updateMe(dto: UpdateProfileDto, user: JwtPayload): Promise<{
         id: string;
+        avatarUrl: string | null;
+        updatedAt: Date;
         phoneNumber: string | null;
         email: string | null;
         displayName: string;
-        avatarUrl: string | null;
         aboutText: string | null;
         isVerified: boolean;
-        updatedAt: Date;
     }>;
     searchUsers(query: string, user: JwtPayload): Promise<{
         id: string;
+        avatarUrl: string | null;
         phoneNumber: string | null;
         displayName: string;
-        avatarUrl: string | null;
         aboutText: string | null;
     }[]>;
     getUserById(id: string): Promise<{
         id: string;
+        avatarUrl: string | null;
+        createdAt: Date;
         phoneNumber: string | null;
         email: string | null;
         displayName: string;
-        avatarUrl: string | null;
         aboutText: string | null;
         isVerified: boolean;
-        createdAt: Date;
     }>;
     blockUser(id: string, user: JwtPayload): Promise<{
         success: boolean;

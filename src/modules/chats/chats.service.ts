@@ -496,4 +496,42 @@ export class ChatsService {
 
     return { success: true };
   }
+
+  async updateDisappearingTimer(chatId: string, requesterId: string, timer: number | null) {
+    const chat = await this.prisma.chat.findUnique({
+      where: { id: chatId },
+      include: { members: { where: { leftAt: null } } }
+    });
+
+    if (!chat) {
+      throw new NotFoundException('Chat not found');
+    }
+
+    const requester = chat.members.find(m => m.userId === requesterId);
+    if (!requester) {
+      throw new ForbiddenException('Only members can update the disappearing timer');
+    }
+
+    const updated = await this.prisma.chat.update({
+      where: { id: chatId },
+      data: { disappearingTimer: timer }
+    });
+
+    // We can emit a socket event if gateway is accessible
+    try {
+      const gateway = (this as any).moduleRef?.get('ChatGateway', { strict: false });
+      if (gateway?.server) {
+        chat.members.forEach((m) => {
+          gateway.server.to(`user:${m.userId}`).emit('chat:updated', { 
+            chatId, 
+            disappearingTimer: timer 
+          });
+        });
+      }
+    } catch (e) {
+      // Gateway access failed
+    }
+
+    return updated;
+  }
 }

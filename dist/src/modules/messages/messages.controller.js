@@ -19,9 +19,26 @@ const messages_service_1 = require("./messages.service");
 const message_dto_1 = require("./dto/message.dto");
 const jwt_auth_guard_1 = require("../../common/guards/jwt-auth.guard");
 const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
+const link_preview_js_1 = require("link-preview-js");
 let MessagesController = class MessagesController {
     constructor(messagesService) {
         this.messagesService = messagesService;
+    }
+    async getLinkPreview(url) {
+        try {
+            if (!url)
+                return null;
+            const preview = await (0, link_preview_js_1.getLinkPreview)(url, {
+                timeout: 3000,
+                headers: { 'user-agent': 'WhatsAppBot' },
+                followRedirects: 'follow'
+            });
+            return preview;
+        }
+        catch (err) {
+            console.error('Link preview error:', err);
+            return null;
+        }
     }
     async getMessages(chatId, query, user) {
         return this.messagesService.getMessages(chatId, user.sub, query.limit, query.cursor);
@@ -38,6 +55,15 @@ let MessagesController = class MessagesController {
     }
 };
 exports.MessagesController = MessagesController;
+__decorate([
+    (0, common_1.Get)('link-preview'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get metadata for a URL link preview' }),
+    (0, swagger_1.ApiQuery)({ name: 'url', required: true }),
+    __param(0, (0, common_1.Query)('url')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], MessagesController.prototype, "getLinkPreview", null);
 __decorate([
     (0, common_1.Get)(),
     (0, swagger_1.ApiOperation)({ summary: 'Get messages for a chat' }),

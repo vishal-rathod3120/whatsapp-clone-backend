@@ -5,42 +5,42 @@ export declare class AuthRepository {
     constructor(prisma: PrismaService);
     findUserByPhoneNumber(phoneNumber: string): Promise<{
         id: string;
+        avatarUrl: string | null;
+        createdAt: Date;
+        updatedAt: Date;
         phoneNumber: string | null;
         email: string | null;
         username: string | null;
         displayName: string;
-        avatarUrl: string | null;
         aboutText: string | null;
         passwordHash: string | null;
         isVerified: boolean;
-        createdAt: Date;
-        updatedAt: Date;
     } | null>;
     findUserByEmail(email: string): Promise<{
         id: string;
+        avatarUrl: string | null;
+        createdAt: Date;
+        updatedAt: Date;
         phoneNumber: string | null;
         email: string | null;
         username: string | null;
         displayName: string;
-        avatarUrl: string | null;
         aboutText: string | null;
         passwordHash: string | null;
         isVerified: boolean;
-        createdAt: Date;
-        updatedAt: Date;
     } | null>;
     findUserById(id: string): Promise<{
         id: string;
+        avatarUrl: string | null;
+        createdAt: Date;
+        updatedAt: Date;
         phoneNumber: string | null;
         email: string | null;
         username: string | null;
         displayName: string;
-        avatarUrl: string | null;
         aboutText: string | null;
         passwordHash: string | null;
         isVerified: boolean;
-        createdAt: Date;
-        updatedAt: Date;
     } | null>;
     createUser(data: {
         displayName: string;
@@ -65,16 +65,16 @@ export declare class AuthRepository {
         }[];
     } & {
         id: string;
+        avatarUrl: string | null;
+        createdAt: Date;
+        updatedAt: Date;
         phoneNumber: string | null;
         email: string | null;
         username: string | null;
         displayName: string;
-        avatarUrl: string | null;
         aboutText: string | null;
         passwordHash: string | null;
         isVerified: boolean;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     createDevice(data: {
         userId: string;

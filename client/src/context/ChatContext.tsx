@@ -28,6 +28,8 @@ interface Message {
   attachmentUrl?: string;
   attachmentMimeType?: string;
   reactions?: any[];
+  expiresAt?: string;
+  isStarred?: boolean;
 }
 
 interface Chat {
@@ -39,6 +41,7 @@ interface Chat {
   unreadCount: number;
   lastMessageAt?: string;
   members: { userId: string; displayName: string; avatarUrl?: string; role?: string }[];
+  disappearingTimer?: number | null;
 }
 
 interface ChatState {
@@ -49,6 +52,7 @@ interface ChatState {
   isLoadingChats: boolean;
   onlineUsers: string[];
   userPresence: Record<string, { status: string; lastSeen?: string }>;
+  starredMessages: Message[];
 }
 
 type ChatAction =
@@ -66,8 +70,12 @@ type ChatAction =
   | { type: 'DELETE_MESSAGE'; payload: { id: string; chatId: string; forEveryone: boolean } }
   | { type: 'UPDATE_MESSAGE_STATUS'; payload: { messageId: string; chatId: string; status: 'delivered' | 'read' } }
   | { type: 'SET_ONLINE_USERS'; payload: string[] }
-  | { type: 'UPDATE_CHAT'; payload: Chat }
-  | { type: 'UPDATE_PRESENCE'; payload: { userId: string; status: string; lastSeen?: string } };
+  | { type: 'UPDATE_CHAT'; payload: Partial<Chat> & { id: string } }
+  | { type: 'UPDATE_PRESENCE'; payload: { userId: string; status: string; lastSeen?: string } }
+  | { type: 'SET_STARRED_MESSAGES'; payload: Message[] }
+  | { type: 'ADD_STARRED_MESSAGE'; payload: Message }
+  | { type: 'REMOVE_STARRED_MESSAGE'; payload: string }
+  | { type: 'DELETE_MESSAGES_BATCH'; payload: { chatId: string; messageIds: string[]; forEveryone: boolean } };
 
 function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
@@ -138,6 +146,15 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       const chats = state.chats.map(c => c.id === action.payload.chatId ? { ...c, unreadCount: action.payload.count } : c);
       return { ...state, chats };
     }
+    case 'UPDATE_CHAT': {
+      const chat = action.payload;
+      const chats = state.chats.map(c => c.id === chat.id ? { ...c, ...chat } : c);
+      return { 
+        ...state, 
+        chats,
+        activeChat: state.activeChat?.id === chat.id ? { ...state.activeChat, ...chat } : state.activeChat
+      };
+    }
     case 'SET_LOADING':
       return { ...state, isLoadingChats: action.payload };
     case 'DELETE_MESSAGE': {
@@ -151,6 +168,18 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       } else {
         // Remove completely for this user
         const msgs = (state.messages[chatId] || []).filter(m => m.id !== id);
+        return { ...state, messages: { ...state.messages, [chatId]: msgs } };
+      }
+    }
+    case 'DELETE_MESSAGES_BATCH': {
+      const { chatId, messageIds, forEveryone } = action.payload;
+      if (forEveryone) {
+        const msgs = (state.messages[chatId] || []).map(m => 
+          messageIds.includes(m.id) ? { ...m, isDeleted: true, textContent: undefined, attachmentId: undefined, attachmentUrl: undefined } : m
+        );
+        return { ...state, messages: { ...state.messages, [chatId]: msgs } };
+      } else {
+        const msgs = (state.messages[chatId] || []).filter(m => !messageIds.includes(m.id));
         return { ...state, messages: { ...state.messages, [chatId]: msgs } };
       }
     }
@@ -170,6 +199,15 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
         userPresence: { ...state.userPresence, [userId]: { status, lastSeen } },
       };
     }
+    case 'SET_STARRED_MESSAGES':
+      return { ...state, starredMessages: action.payload };
+    case 'ADD_STARRED_MESSAGE': {
+      const existing = state.starredMessages.find(m => m.id === action.payload.id);
+      if (existing) return state;
+      return { ...state, starredMessages: [action.payload, ...state.starredMessages] };
+    }
+    case 'REMOVE_STARRED_MESSAGE':
+      return { ...state, starredMessages: state.starredMessages.filter(m => m.id !== action.payload) };
     default:
       return state;
   }
@@ -183,6 +221,7 @@ const initialState: ChatState = {
   isLoadingChats: true,
   onlineUsers: [],
   userPresence: {},
+  starredMessages: [],
 };
 
 interface ChatContextType extends ChatState {
@@ -191,7 +230,7 @@ interface ChatContextType extends ChatState {
   deselectChat: () => void;
   loadMessages: (chatId: string) => Promise<void>;
   sendMessage: (chatId: string, text: string, replyToMessageId?: string) => void;
-  sendMediaMessage: (chatId: string, file: File, type: 'IMAGE' | 'VIDEO' | 'FILE') => Promise<void>;
+  sendMediaMessage: (chatId: string, file: File, type: 'IMAGE' | 'VIDEO' | 'FILE' | 'AUDIO') => Promise<void>;
   deleteMessage: (chatId: string, messageId: string, forEveryone: boolean) => Promise<void>;
   deleteGroup: (chatId: string) => Promise<void>;
   createDirectChat: (targetUserId: string) => Promise<void>;
@@ -201,6 +240,9 @@ interface ChatContextType extends ChatState {
   removeGroupMember: (chatId: string, userId: string) => Promise<void>;
   updateMemberRole: (chatId: string, userId: string, role: string) => Promise<void>;
   updateGroupInfo: (chatId: string, data: { title?: string; avatarUrl?: string }) => Promise<void>;
+  fetchStarredMessages: () => Promise<void>;
+  starMessage: (chatId: string, messageId: string) => Promise<void>;
+  unstarMessage: (chatId: string, messageId: string) => Promise<void>;
   dispatch: React.Dispatch<ChatAction>;
 }
 
@@ -264,7 +306,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     socketService.sendMessage(chatId, { clientTempId, type: 'TEXT', textContent: text, replyToMessageId });
   }, []);
 
-  const sendMediaMessage = useCallback(async (chatId: string, file: File, type: 'IMAGE' | 'VIDEO' | 'FILE') => {
+  const sendMediaMessage = useCallback(async (chatId: string, file: File, type: 'IMAGE' | 'VIDEO' | 'FILE' | 'AUDIO') => {
     const clientTempId = generateClientId();
     const objectUrl = URL.createObjectURL(file);
     
@@ -378,6 +420,40 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshChat]);
 
+  const starMessage = useCallback(async (chatId: string, messageId: string) => {
+    try {
+      await api.starMessage(chatId, messageId);
+      // Optimistically update locals
+      const msg = state.messages[chatId]?.find(m => m.id === messageId);
+      if (msg) {
+        dispatch({ type: 'ADD_STARRED_MESSAGE', payload: { ...msg, isStarred: true }});
+        dispatch({ type: 'UPDATE_MESSAGE', payload: { id: messageId, chatId, updates: { isStarred: true } } });
+      }
+    } catch (err) {
+      console.error('Failed to star message:', err);
+    }
+  }, [state.messages]);
+
+  const unstarMessage = useCallback(async (chatId: string, messageId: string) => {
+    try {
+      await api.unstarMessage(chatId, messageId);
+      // Optimistically update locals
+      dispatch({ type: 'REMOVE_STARRED_MESSAGE', payload: messageId });
+      dispatch({ type: 'UPDATE_MESSAGE', payload: { id: messageId, chatId, updates: { isStarred: false } } });
+    } catch (err) {
+      console.error('Failed to unstar message:', err);
+    }
+  }, []);
+
+  const fetchStarredMessages = useCallback(async () => {
+    try {
+      const msgs = await api.getStarredMessages();
+      dispatch({ type: 'SET_STARRED_MESSAGES', payload: msgs });
+    } catch (err) {
+      console.error('Failed to fetch starred messages:', err);
+    }
+  }, []);
+
   // Socket event listeners
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -404,12 +480,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'DELETE_MESSAGE', payload: { id: data.messageId, chatId: data.chatId, forEveryone: data.deletedForEveryone } });
     };
 
+    const onMessageDeletedBatch = (data: { chatId: string; messageIds: string[]; forEveryone: boolean }) => {
+      dispatch({ type: 'DELETE_MESSAGES_BATCH', payload: { chatId: data.chatId, messageIds: data.messageIds, forEveryone: data.forEveryone } });
+    };
+
     const onMessageEdited = (data: { chatId: string; messageId: string; textContent: string; editedAt: string }) => {
       dispatch({ type: 'UPDATE_MESSAGE', payload: { id: data.messageId, chatId: data.chatId, updates: { textContent: data.textContent, editedAt: data.editedAt } } });
     };
 
     const onChatDeleted = (data: { chatId: string }) => {
       dispatch({ type: 'DELETE_CHAT', payload: data.chatId });
+    };
+
+    const onChatUpdated = (data: { chatId: string; disappearingTimer?: number | null }) => {
+      dispatch({ type: 'UPDATE_CHAT', payload: { id: data.chatId, disappearingTimer: data.disappearingTimer } });
     };
 
     const onUserOnline = (userIds: string[]) => {
@@ -436,8 +520,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     socketService.on('chat:sent-ack', onSentAck);
     socketService.on('chat:typing:update', onTyping);
     socketService.on('message:deleted', onMessageDeleted);
+    socketService.on('message:deleted:batch', onMessageDeletedBatch);
     socketService.on('message:edited', onMessageEdited);
     socketService.on('chat:deleted', onChatDeleted);
+    socketService.on('chat:updated', onChatUpdated);
     socketService.on('user:online', onUserOnline);
     socketService.on('presence:update', onPresenceUpdate);
     socketService.on('chat:delivered:update', onDeliveredUpdate);
@@ -472,7 +558,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [state.activeChat?.id, state.messages[state.activeChat?.id || '']?.length, user?.id]);
 
   return (
-    <ChatContext.Provider value={{ ...state, loadChats, selectChat, deselectChat, loadMessages, sendMessage, sendMediaMessage, deleteMessage, deleteGroup, createDirectChat, createGroupChat, refreshChat, addGroupMembers, removeGroupMember, updateMemberRole, updateGroupInfo, dispatch }}>
+    <ChatContext.Provider value={{ ...state, loadChats, selectChat, deselectChat, loadMessages, sendMessage, sendMediaMessage, deleteMessage, deleteGroup, createDirectChat, createGroupChat, refreshChat, addGroupMembers, removeGroupMember, updateMemberRole, updateGroupInfo, fetchStarredMessages, starMessage, unstarMessage, dispatch }}>
       {children}
     </ChatContext.Provider>
   );

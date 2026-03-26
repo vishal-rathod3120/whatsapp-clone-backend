@@ -436,6 +436,37 @@ let ChatsService = class ChatsService {
         }
         return { success: true };
     }
+    async updateDisappearingTimer(chatId, requesterId, timer) {
+        const chat = await this.prisma.chat.findUnique({
+            where: { id: chatId },
+            include: { members: { where: { leftAt: null } } }
+        });
+        if (!chat) {
+            throw new common_1.NotFoundException('Chat not found');
+        }
+        const requester = chat.members.find(m => m.userId === requesterId);
+        if (!requester) {
+            throw new common_1.ForbiddenException('Only members can update the disappearing timer');
+        }
+        const updated = await this.prisma.chat.update({
+            where: { id: chatId },
+            data: { disappearingTimer: timer }
+        });
+        try {
+            const gateway = this.moduleRef?.get('ChatGateway', { strict: false });
+            if (gateway?.server) {
+                chat.members.forEach((m) => {
+                    gateway.server.to(`user:${m.userId}`).emit('chat:updated', {
+                        chatId,
+                        disappearingTimer: timer
+                    });
+                });
+            }
+        }
+        catch (e) {
+        }
+        return updated;
+    }
 };
 exports.ChatsService = ChatsService;
 exports.ChatsService = ChatsService = __decorate([

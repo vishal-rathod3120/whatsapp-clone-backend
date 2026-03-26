@@ -9,6 +9,41 @@ function getInitials(name?: string) {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 }
 
+// Block/Unblock Button Component
+function BlockButton({ userId, displayName }: { userId: string; displayName?: string }) {
+  const [blocked, setBlocked] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleToggle = async () => {
+    const action = blocked ? 'unblock' : 'block';
+    if (!window.confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} ${displayName || 'this contact'}?`)) return;
+    setLoading(true);
+    try {
+      if (blocked) {
+        await api.unblockUser(userId);
+        setBlocked(false);
+      } else {
+        await api.blockUser(userId);
+        setBlocked(true);
+      }
+    } catch (err) {
+      console.error(`Failed to ${action}:`, err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button
+      className={`contact-info-action-btn ${blocked ? 'success' : 'danger'}`}
+      onClick={handleToggle}
+      disabled={loading}
+    >
+      {loading ? '...' : blocked ? '✅ Unblock Contact' : '🚫 Block Contact'}
+    </button>
+  );
+}
+
 interface Props {
   chat: any;
   onClose: () => void;
@@ -202,6 +237,47 @@ export function ContactInfoPanel({ chat, onClose, onImageClick }: Props) {
           </>
         )}
 
+        {/* Disappearing Messages Toggle */}
+        <div className="contact-info-section">
+          <div className="contact-info-field">
+            <div className="contact-info-field-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              ⏱️ Disappearing Messages
+            </div>
+            <select
+              value={chat.disappearingTimer || ''}
+              onChange={async (e) => {
+                const val = e.target.value;
+                const timer = val ? parseInt(val, 10) : null;
+                try {
+                  await api.updateDisappearingTimer(chat.id, timer);
+                } catch (err) {
+                  console.error('Failed to update timer', err);
+                  alert('Error updating disappearing messages timer');
+                }
+              }}
+              style={{
+                width: '100%',
+                marginTop: 8,
+                padding: '8px 12px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--bg-input)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-light)',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">Off</option>
+              <option value="86400">24 hours</option>
+              <option value="604800">7 days</option>
+              <option value="7776000">90 days</option>
+            </select>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.4 }}>
+              Make messages in this chat disappear after the selected time.
+            </div>
+          </div>
+        </div>
+        <div className="contact-info-divider" />
+
         {/* Shared Media */}
         <div className="contact-info-section">
           <div className="contact-info-section-title">
@@ -354,10 +430,8 @@ export function ContactInfoPanel({ chat, onClose, onImageClick }: Props) {
               🚪 Leave Group
             </button>
           )}
-          {chat.type === 'DIRECT' && (
-            <button className="contact-info-action-btn danger">
-              🚫 Block Contact
-            </button>
+          {chat.type === 'DIRECT' && otherMember && (
+            <BlockButton userId={otherMember.userId} displayName={otherMember.displayName} />
           )}
         </div>
       </div>

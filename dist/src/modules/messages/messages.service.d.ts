@@ -13,12 +13,13 @@ export declare class MessagesService {
     createMessage(chatId: string, senderId: string, dto: SendMessageDto): Promise<{
         sender: {
             id: string;
-            displayName: string;
             avatarUrl: string | null;
+            displayName: string;
         };
         attachment: {
             id: string;
             createdAt: Date;
+            uploaderId: string;
             storageKey: string;
             originalName: string | null;
             mimeType: string;
@@ -27,16 +28,15 @@ export declare class MessagesService {
             height: number | null;
             durationSeconds: number | null;
             thumbnailKey: string | null;
-            uploaderId: string;
         } | null;
         replyToMessage: {
             id: string;
             type: import(".prisma/client").$Enums.MessageType;
+            senderId: string;
             textContent: string | null;
             sender: {
                 displayName: string;
             };
-            senderId: string;
         } | null;
         receipts: {
             userId: string;
@@ -45,27 +45,29 @@ export declare class MessagesService {
         }[];
     } & {
         id: string;
-        createdAt: Date;
         type: import(".prisma/client").$Enums.MessageType;
-        status: import(".prisma/client").$Enums.MessageStatus;
+        createdAt: Date;
         chatId: string;
+        senderId: string;
         clientTempId: string | null;
         textContent: string | null;
-        isDeleted: boolean;
-        editedAt: Date | null;
-        senderId: string;
         replyToMessageId: string | null;
         attachmentId: string | null;
+        status: import(".prisma/client").$Enums.MessageStatus;
+        isDeleted: boolean;
+        editedAt: Date | null;
+        expiresAt: Date | null;
     }>;
     getMessageById(messageId: string): Promise<{
         sender: {
             id: string;
-            displayName: string;
             avatarUrl: string | null;
+            displayName: string;
         };
         attachment: {
             id: string;
             createdAt: Date;
+            uploaderId: string;
             storageKey: string;
             originalName: string | null;
             mimeType: string;
@@ -74,16 +76,15 @@ export declare class MessagesService {
             height: number | null;
             durationSeconds: number | null;
             thumbnailKey: string | null;
-            uploaderId: string;
         } | null;
         replyToMessage: {
             id: string;
             type: import(".prisma/client").$Enums.MessageType;
+            senderId: string;
             textContent: string | null;
             sender: {
                 displayName: string;
             };
-            senderId: string;
         } | null;
         receipts: {
             userId: string;
@@ -92,28 +93,30 @@ export declare class MessagesService {
         }[];
     } & {
         id: string;
-        createdAt: Date;
         type: import(".prisma/client").$Enums.MessageType;
-        status: import(".prisma/client").$Enums.MessageStatus;
+        createdAt: Date;
         chatId: string;
+        senderId: string;
         clientTempId: string | null;
         textContent: string | null;
-        isDeleted: boolean;
-        editedAt: Date | null;
-        senderId: string;
         replyToMessageId: string | null;
         attachmentId: string | null;
+        status: import(".prisma/client").$Enums.MessageStatus;
+        isDeleted: boolean;
+        editedAt: Date | null;
+        expiresAt: Date | null;
     }>;
     getMessages(chatId: string, userId: string, limit?: number, cursor?: string): Promise<{
         items: ({
             sender: {
                 id: string;
-                displayName: string;
                 avatarUrl: string | null;
+                displayName: string;
             };
             attachment: {
                 id: string;
                 createdAt: Date;
+                uploaderId: string;
                 storageKey: string;
                 originalName: string | null;
                 mimeType: string;
@@ -122,16 +125,15 @@ export declare class MessagesService {
                 height: number | null;
                 durationSeconds: number | null;
                 thumbnailKey: string | null;
-                uploaderId: string;
             } | null;
             replyToMessage: {
                 id: string;
                 type: import(".prisma/client").$Enums.MessageType;
+                senderId: string;
                 textContent: string | null;
                 sender: {
                     displayName: string;
                 };
-                senderId: string;
             } | null;
             receipts: {
                 userId: string;
@@ -140,17 +142,18 @@ export declare class MessagesService {
             }[];
         } & {
             id: string;
-            createdAt: Date;
             type: import(".prisma/client").$Enums.MessageType;
-            status: import(".prisma/client").$Enums.MessageStatus;
+            createdAt: Date;
             chatId: string;
+            senderId: string;
             clientTempId: string | null;
             textContent: string | null;
-            isDeleted: boolean;
-            editedAt: Date | null;
-            senderId: string;
             replyToMessageId: string | null;
             attachmentId: string | null;
+            status: import(".prisma/client").$Enums.MessageStatus;
+            isDeleted: boolean;
+            editedAt: Date | null;
+            expiresAt: Date | null;
         })[];
         nextCursor: string | null;
     }>;
@@ -160,12 +163,13 @@ export declare class MessagesService {
     getMissedMessages(userId: string, since: Date): Promise<({
         sender: {
             id: string;
-            displayName: string;
             avatarUrl: string | null;
+            displayName: string;
         };
         attachment: {
             id: string;
             createdAt: Date;
+            uploaderId: string;
             storageKey: string;
             originalName: string | null;
             mimeType: string;
@@ -174,7 +178,6 @@ export declare class MessagesService {
             height: number | null;
             durationSeconds: number | null;
             thumbnailKey: string | null;
-            uploaderId: string;
         } | null;
         receipts: {
             userId: string;
@@ -183,17 +186,18 @@ export declare class MessagesService {
         }[];
     } & {
         id: string;
-        createdAt: Date;
         type: import(".prisma/client").$Enums.MessageType;
-        status: import(".prisma/client").$Enums.MessageStatus;
+        createdAt: Date;
         chatId: string;
+        senderId: string;
         clientTempId: string | null;
         textContent: string | null;
-        isDeleted: boolean;
-        editedAt: Date | null;
-        senderId: string;
         replyToMessageId: string | null;
         attachmentId: string | null;
+        status: import(".prisma/client").$Enums.MessageStatus;
+        isDeleted: boolean;
+        editedAt: Date | null;
+        expiresAt: Date | null;
     })[]>;
     deleteMessage(chatId: string, messageId: string, userId: string, forEveryone: boolean): Promise<{
         success: boolean;
@@ -201,16 +205,17 @@ export declare class MessagesService {
     }>;
     editMessage(chatId: string, messageId: string, userId: string, newTextContent: string): Promise<{
         id: string;
-        createdAt: Date;
         type: import(".prisma/client").$Enums.MessageType;
-        status: import(".prisma/client").$Enums.MessageStatus;
+        createdAt: Date;
         chatId: string;
+        senderId: string;
         clientTempId: string | null;
         textContent: string | null;
-        isDeleted: boolean;
-        editedAt: Date | null;
-        senderId: string;
         replyToMessageId: string | null;
         attachmentId: string | null;
+        status: import(".prisma/client").$Enums.MessageStatus;
+        isDeleted: boolean;
+        editedAt: Date | null;
+        expiresAt: Date | null;
     }>;
 }

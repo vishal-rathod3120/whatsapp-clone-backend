@@ -8,23 +8,24 @@ export declare class ChatsController {
         members: {
             id: string;
             userId: string;
-            chatId: string;
+            role: import(".prisma/client").$Enums.ChatMemberRole;
             joinedAt: Date;
             leftAt: Date | null;
-            role: import(".prisma/client").$Enums.ChatMemberRole;
             isMuted: boolean;
             lastReadMessageId: string | null;
+            chatId: string;
         }[];
     } & {
         id: string;
-        avatarUrl: string | null;
-        createdAt: Date;
-        updatedAt: Date;
         type: import(".prisma/client").$Enums.ChatType;
         title: string | null;
+        avatarUrl: string | null;
         createdById: string;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
+        disappearingTimer: number | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     getChats(query: GetChatsQueryDto, user: JwtPayload): Promise<{
         items: {
@@ -34,11 +35,11 @@ export declare class ChatsController {
             avatarUrl: string | null | undefined;
             lastMessage: {
                 id: string;
-                createdAt: Date;
                 type: import(".prisma/client").$Enums.MessageType;
-                status: import(".prisma/client").$Enums.MessageStatus;
-                textContent: string | null;
+                createdAt: Date;
                 senderId: string;
+                textContent: string | null;
+                status: import(".prisma/client").$Enums.MessageStatus;
             };
             unreadCount: number;
             lastMessageAt: Date | null;
@@ -74,29 +75,30 @@ export declare class ChatsController {
         members: ({
             user: {
                 id: string;
-                displayName: string;
                 avatarUrl: string | null;
+                displayName: string;
             };
         } & {
             id: string;
             userId: string;
-            chatId: string;
+            role: import(".prisma/client").$Enums.ChatMemberRole;
             joinedAt: Date;
             leftAt: Date | null;
-            role: import(".prisma/client").$Enums.ChatMemberRole;
             isMuted: boolean;
             lastReadMessageId: string | null;
+            chatId: string;
         })[];
     } & {
         id: string;
-        avatarUrl: string | null;
-        createdAt: Date;
-        updatedAt: Date;
         type: import(".prisma/client").$Enums.ChatType;
         title: string | null;
+        avatarUrl: string | null;
         createdById: string;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
+        disappearingTimer: number | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     addGroupMembers(chatId: string, dto: AddMembersDto, user: JwtPayload): Promise<{
         success: boolean;
@@ -110,16 +112,31 @@ export declare class ChatsController {
     }>;
     updateGroupInfo(chatId: string, dto: UpdateGroupDto, user: JwtPayload): Promise<{
         id: string;
-        avatarUrl: string | null;
-        createdAt: Date;
-        updatedAt: Date;
         type: import(".prisma/client").$Enums.ChatType;
         title: string | null;
+        avatarUrl: string | null;
         createdById: string;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
+        disappearingTimer: number | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     deleteGroup(chatId: string, user: JwtPayload): Promise<{
         success: boolean;
+    }>;
+    updateDisappearingTimer(chatId: string, body: {
+        timer: number | null;
+    }, user: JwtPayload): Promise<{
+        id: string;
+        type: import(".prisma/client").$Enums.ChatType;
+        title: string | null;
+        avatarUrl: string | null;
+        createdById: string;
+        lastMessageId: string | null;
+        lastMessageAt: Date | null;
+        disappearingTimer: number | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
 }

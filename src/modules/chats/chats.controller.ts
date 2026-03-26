@@ -93,4 +93,14 @@ export class ChatsController {
   async deleteGroup(@Param('chatId') chatId: string, @CurrentUser() user: JwtPayload) {
     return this.chatsService.deleteGroup(chatId, user.sub);
   }
+
+  @Patch(':chatId/disappearing-messages')
+  @ApiOperation({ summary: 'Update disappearing messages timer for a chat' })
+  async updateDisappearingTimer(
+    @Param('chatId') chatId: string,
+    @Body() body: { timer: number | null },
+    @CurrentUser() user: JwtPayload
+  ) {
+    return this.chatsService.updateDisappearingTimer(chatId, user.sub, body.timer);
+  }
 }

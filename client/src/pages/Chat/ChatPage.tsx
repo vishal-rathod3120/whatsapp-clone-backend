@@ -10,6 +10,7 @@ import { ContactInfoPanel } from '../../components/ContactInfoPanel';
 import { EmojiPicker } from '../../components/EmojiPicker';
 import { CallHistory } from '../../components/CallHistory';
 import { StatusPanel } from '../../components/StatusPanel';
+import { StarredMessagesPanel } from '../../components/StarredMessagesPanel';
 import { useCall } from '../../context/CallContext';
 import './Chat.css';
 
@@ -46,6 +47,7 @@ function Sidebar() {
   const [showProfile, setShowProfile] = useState(false);
   const [showCallHistory, setShowCallHistory] = useState(false);
   const [showStatusPanel, setShowStatusPanel] = useState(false);
+  const [showStarredPanel, setShowStarredPanel] = useState(false);
 
   useEffect(() => { loadChats(); }, [loadChats]);
 
@@ -105,6 +107,7 @@ function Sidebar() {
           </button>
           <button className="icon-btn" onClick={() => setShowStatusPanel(true)} title="Status">⭕</button>
           <button className="icon-btn" onClick={() => setShowCallHistory(true)} title="Call History">📞</button>
+          <button className="icon-btn" onClick={() => setShowStarredPanel(true)} title="Starred Messages">⭐</button>
           <button className="icon-btn" onClick={() => setShowGroupModal(true)} title="New Group">👥</button>
           <button className="icon-btn" onClick={logout} title="Logout">🚪</button>
         </div>
@@ -209,6 +212,9 @@ function Sidebar() {
       {showStatusPanel && (
         <StatusPanel onClose={() => setShowStatusPanel(false)} />
       )}
+      {showStarredPanel && (
+        <StarredMessagesPanel onClose={() => setShowStarredPanel(false)} onImageClick={(url) => {}} />
+      )}
     </div>
   );
 }
@@ -250,6 +256,45 @@ function ChatListItem({ chat, isActive, onClick }: { chat: any; isActive: boolea
   );
 }
 
+// ===== LINK PREVIEW COMPONENT =====
+function LinkPreview({ url, chatId }: { url: string; chatId: string }) {
+  const [preview, setPreview] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    api.getLinkPreview(chatId, url)
+      .then(data => {
+        if (active && data && data.title) {
+          setPreview(data);
+        }
+      })
+      .catch()
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, [url, chatId]);
+
+  if (loading || !preview) return null;
+
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" className="link-preview-card" onClick={e => e.stopPropagation()}>
+      {preview.images?.length > 0 && typeof preview.images[0] === 'string' && (
+        <img src={preview.images[0]} alt="" className="link-preview-img" />
+      )}
+      <div className="link-preview-content">
+        <div className="link-preview-title">{preview.title}</div>
+        <div className="link-preview-desc">{preview.description || preview.siteName}</div>
+        <div className="link-preview-domain">
+          {new URL(url).hostname.replace(/^www\./, '')}
+        </div>
+      </div>
+    </a>
+  );
+}
+
 // ===== CONVERSATION COMPONENT =====
 function Conversation() {
   const { 
@@ -263,7 +308,9 @@ function Conversation() {
     deleteGroup,
     deselectChat,
     typingUsers,
-    userPresence
+    userPresence,
+    starMessage,
+    unstarMessage
   } = useChat();
   const { user } = useAuth();
   const { initiateCall } = useCall();
@@ -279,6 +326,11 @@ function Conversation() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [editingMsg, setEditingMsg] = useState<any>(null);
   const [editInput, setEditInput] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -344,6 +396,61 @@ function Conversation() {
     fileInputRef.current?.click();
   };
 
+  // Voice recording
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+      recordingChunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) recordingChunksRef.current.push(e.data);
+      };
+      recorder.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+      };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+      setRecordingTime(0);
+      recordingTimerRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
+    } catch (err) {
+      console.error('Mic access denied:', err);
+      alert('Please allow microphone access to record voice messages.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (!mediaRecorderRef.current || !activeChat) return;
+    const recorder = mediaRecorderRef.current;
+    recorder.onstop = () => {
+      recorder.stream.getTracks().forEach(t => t.stop());
+      const blob = new Blob(recordingChunksRef.current, { type: 'audio/webm' });
+      const file = new File([blob], `voice_${Date.now()}.webm`, { type: 'audio/webm' });
+      sendMediaMessage(activeChat.id, file, 'AUDIO');
+      recordingChunksRef.current = [];
+    };
+    recorder.stop();
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    setIsRecording(false);
+    setRecordingTime(0);
+  };
+
+  const cancelRecording = () => {
+    if (!mediaRecorderRef.current) return;
+    mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
+    mediaRecorderRef.current.stop();
+    recordingChunksRef.current = [];
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    setIsRecording(false);
+    setRecordingTime(0);
+  };
+
+  const formatRecordingTime = (sec: number) => {
+    const m = Math.floor(sec / 60).toString().padStart(2, '0');
+    const s = (sec % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !activeChat) return;
@@ -385,7 +492,7 @@ function Conversation() {
     <div className="conversation-panel">
       <div className="conv-header">
         <button className="back-btn" onClick={() => deselectChat()}>←</button>
-        <div className="chat-avatar" style={{ width: 40, height: 40, fontSize: 16 }}>
+        <div className="chat-avatar" style={{ width: 40, height: 40, fontSize: 16, cursor: 'pointer', marginRight: '12px' }} onClick={() => setShowContactInfo(!showContactInfo)}>
           {activeChat.avatarUrl ? <img src={activeChat.avatarUrl} alt="" /> : getInitials(activeChat.title)}
         </div>
         <div className="conv-header-info" style={{ cursor: 'pointer' }} onClick={() => setShowContactInfo(!showContactInfo)}>
@@ -519,6 +626,12 @@ function Conversation() {
           const showDate = msgDate !== lastDate;
           lastDate = msgDate;
           const isSent = msg.senderId === user?.id || msg.senderId === 'me';
+          
+          const prevMsg = i > 0 ? filteredMessages[i - 1] : null;
+          const isFirstInGroup = !prevMsg || 
+            prevMsg.senderId !== msg.senderId || 
+            new Date(msg.createdAt).getTime() - new Date(prevMsg.createdAt).getTime() > 5 * 60 * 1000 ||
+            showDate;
 
           return (
             <div key={msg.id || msg.clientTempId || i} id={`msg-${msg.id}`}>
@@ -527,8 +640,16 @@ function Conversation() {
                   <span>{msgDate}</span>
                 </div>
               )}
-              <div className={`message-row ${isSent ? 'sent' : 'received'}`}>
+              <div className={`message-row ${isSent ? 'sent' : 'received'} ${isFirstInGroup ? 'first-in-group' : ''}`}>
                 <div className={`message-bubble ${msg.type === 'IMAGE' || (msg as any).attachment ? 'media-bubble' : ''} ${msg.textContent ? 'has-text' : ''}`}>
+                  {!isSent && activeChat.type === 'GROUP' && isFirstInGroup && (
+                    <div className="message-sender-name" style={{
+                      color: `hsl(${Math.abs(msg.senderId.split('').reduce((a:number, b:string) => a + b.charCodeAt(0), 0)) % 360}, 60%, 45%)`,
+                      fontSize: '12.5px', fontWeight: 600, marginBottom: '2px', cursor: 'pointer'
+                    }}>
+                      {msg.sender?.displayName || 'Unknown'}
+                    </div>
+                  )}
                   {msg.isDeleted ? (
                     <span className="message-deleted">🚫 This message was deleted</span>
                   ) : (
@@ -573,6 +694,18 @@ function Conversation() {
                          ) : null;
                       })()}
 
+                      {/* Audio Message Rendering */}
+                      {msg.type === 'AUDIO' && (() => {
+                        const audioSrc = msg.attachmentUrl ||
+                          ((msg as any).attachment?.storageKey ? `http://localhost:3000/uploads/${(msg as any).attachment.storageKey}` : null);
+                        return audioSrc ? (
+                          <div className="voice-message-player">
+                            <span className="voice-msg-icon">🎤</span>
+                            <audio controls preload="metadata" src={audioSrc} className="voice-audio-element" />
+                          </div>
+                        ) : null;
+                      })()}
+
                       {msg.textContent && (
                         editingMsg?.id === msg.id ? (
                           <div className="message-edit-container">
@@ -590,10 +723,21 @@ function Conversation() {
                             </div>
                           </div>
                         ) : (
-                          <span className="message-text">{msg.textContent}</span>
+                          <div className="message-text">
+                            <span>{msg.textContent}</span>
+                            {/* Link Preview */}
+                            {(() => {
+                              const match = msg.textContent.match(/https?:\/\/[^\s]+/);
+                              if (match) {
+                                return <LinkPreview url={match[0]} chatId={activeChat.id} />;
+                              }
+                              return null;
+                            })()}
+                          </div>
                         )
                       )}
                       <span className="message-meta">
+                        {msg.isStarred && <span className="message-starred" style={{ marginRight: 4 }}>⭐</span>}
                         {msg.editedAt && <span className="message-edited">edited</span>}
                         <span className="message-time">{formatTime(msg.createdAt)}</span>
                          {isSent && (
@@ -633,6 +777,12 @@ function Conversation() {
                             </button>
                             <button onClick={() => { setForwardingMsg(msg); setOpenMenuId(null); }}>
                               ↗️ Forward
+                            </button>
+                            <button onClick={() => {
+                              msg.isStarred ? unstarMessage(activeChat!.id, msg.id) : starMessage(activeChat!.id, msg.id);
+                              setOpenMenuId(null);
+                            }}>
+                              {msg.isStarred ? '⭐ Unstar' : '⭐ Star'}
                             </button>
                             {isSent && !msg.isDeleted && msg.type === 'TEXT' && (
                               <button onClick={() => { setEditingMsg(msg); setEditInput(msg.textContent || ''); setOpenMenuId(null); }}>
@@ -754,9 +904,24 @@ function Conversation() {
               onKeyDown={handleKeyDown}
             />
           </div>
-          <button className="send-btn" onClick={handleSend}>
-            ➤
-          </button>
+          {isRecording ? (
+            <div className="recording-bar">
+              <button className="recording-cancel-btn" onClick={cancelRecording}>✕</button>
+              <div className="recording-indicator">
+                <span className="recording-dot" />
+                <span className="recording-time">{formatRecordingTime(recordingTime)}</span>
+              </div>
+              <button className="recording-send-btn" onClick={stopRecording}>➤</button>
+            </div>
+          ) : (
+            <>
+              {input.trim() ? (
+                <button className="send-btn" onClick={handleSend}>➤</button>
+              ) : (
+                <button className="mic-btn" onClick={startRecording} title="Record voice message">🎤</button>
+              )}
+            </>
+          )}
         </div>
       </div>
 

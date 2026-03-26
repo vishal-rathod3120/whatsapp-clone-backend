@@ -80,6 +80,7 @@ model User {
   deletedMessages  DeletedMessage[]
   statuses         Status[]
   messageReactions MessageReaction[]
+  starredMessages  StarredMessage[]   // Relation to starred messages
 
   @@map("users")
 }
@@ -110,6 +111,7 @@ model Chat {
   createdById    String
   lastMessageId  String?
   lastMessageAt  DateTime?
+  disappearingTimer Int?       // Auto-delete timer in seconds (e.g., 86400)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -155,6 +157,7 @@ model Message {
   isDeleted        Boolean          @default(false)
   createdAt        DateTime         @default(now())
   editedAt         DateTime?
+  expiresAt        DateTime?        // The exact time when this message should auto-delete if disappearingTimer was set on the Chat
 
   chat             Chat             @relation(fields: [chatId], references: [id], onDelete: Cascade)
   sender           User             @relation("MessageSender", fields: [senderId], references: [id], onDelete: Restrict)
@@ -164,6 +167,7 @@ model Message {
   receipts         MessageReceipt[]
   deletedByUsers   DeletedMessage[]
   reactions        MessageReaction[]
+  starredByUsers   StarredMessage[]
 
   @@index([chatId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([senderId])
@@ -319,3 +323,14 @@ model StatusView {
   @@map("status_views")
 }
 
+model StarredMessage {
+  userId    String
+  messageId String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@id([userId, messageId])
+  @@map("starred_messages")
+}

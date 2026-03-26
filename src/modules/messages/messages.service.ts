@@ -69,6 +69,13 @@ export class MessagesService {
       }
     }
 
+    // Calculate expiresAt if chat has a disappearingTimer
+    let expiresAt: Date | undefined;
+    if (chat.disappearingTimer) {
+      expiresAt = new Date();
+      expiresAt.setSeconds(expiresAt.getSeconds() + chat.disappearingTimer);
+    }
+
     // Create message and update chat in transaction (fast operations)
     const message = await this.prisma.$transaction(async (tx) => {
       // Create the message
@@ -83,6 +90,7 @@ export class MessagesService {
           attachmentId: dto.attachmentId,
           replyToMessageId: dto.replyToMessageId,
           status: MessageStatus.SENT,
+          expiresAt, // Add expiresAt timestamp
         },
       });
 
@@ -445,5 +453,100 @@ export class MessagesService {
     });
 
     return updated;
+  }
+
+  async starMessage(chatId: string, messageId: string, userId: string) {
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+    });
+
+    if (!message || message.chatId !== chatId) {
+      throw new NotFoundException('Message not found');
+    }
+
+    try {
+      await this.prisma.starredMessage.create({
+        data: {
+          userId,
+          messageId,
+        },
+      });
+    } catch (err) {
+      // Ignore unique constraint violation if already starred
+    }
+
+    return { success: true };
+  }
+
+  async unstarMessage(chatId: string, messageId: string, userId: string) {
+    try {
+      await this.prisma.starredMessage.delete({
+        where: {
+          userId_messageId: {
+            userId,
+            messageId,
+          },
+        },
+      });
+    } catch (err) {
+      // Ignore if not found
+    }
+
+    return { success: true };
+  }
+
+  async getStarredMessages(userId: string) {
+    const starred = await this.prisma.starredMessage.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        message: {
+          include: {
+            chat: {
+              select: {
+                id: true,
+                type: true,
+                title: true,
+                avatarUrl: true,
+                members: {
+                  include: {
+                    user: { select: { displayName: true, avatarUrl: true }}
+                  }
+                }
+              }
+            },
+            sender: {
+              select: {
+                id: true,
+                displayName: true,
+                avatarUrl: true,
+              },
+            },
+            attachment: true,
+          },
+        },
+      },
+    });
+
+    // Format chat titles for direct chats
+    return starred.map(s => {
+      let chat = s.message.chat;
+      if (chat.type === 'DIRECT') {
+        const otherMember = chat.members.find(m => m.userId !== userId)?.user;
+        chat = {
+          ...chat,
+          title: otherMember?.displayName || 'Unknown',
+          avatarUrl: otherMember?.avatarUrl || null
+        };
+      }
+      return {
+        ...s.message,
+        chatId: chat.id,
+        chatType: chat.type,
+        chatTitle: chat.title,
+        chatAvatar: chat.avatarUrl,
+        starredAt: s.createdAt
+      };
+    });
   }
 }
