@@ -42,6 +42,10 @@ interface Chat {
   lastMessageAt?: string;
   members: { userId: string; displayName: string; avatarUrl?: string; role?: string }[];
   disappearingTimer?: number | null;
+  isPinned?: boolean;
+  isMuted?: boolean;
+  mutedUntil?: string | null;
+  wallpaperUrl?: string | null;
 }
 
 interface ChatState {
@@ -117,8 +121,12 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
           ? { ...c, lastMessage: action.payload, lastMessageAt: action.payload.createdAt }
           : c
       );
-      // Move chat to top
-      chats.sort((a, b) => new Date(b.lastMessageAt || 0).getTime() - new Date(a.lastMessageAt || 0).getTime());
+      // Move chat to top (respecting pinning)
+      chats.sort((a, b) => {
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        return new Date(b.lastMessageAt || 0).getTime() - new Date(a.lastMessageAt || 0).getTime();
+      });
       return { ...state, messages: { ...state.messages, [chatId]: updated }, chats };
     }
     case 'SENT_ACK': {
@@ -243,6 +251,9 @@ interface ChatContextType extends ChatState {
   fetchStarredMessages: () => Promise<void>;
   starMessage: (chatId: string, messageId: string) => Promise<void>;
   unstarMessage: (chatId: string, messageId: string) => Promise<void>;
+  togglePin: (chatId: string, isPinned: boolean) => Promise<void>;
+  updateMute: (chatId: string, isMuted: boolean, mutedUntil?: string | null) => Promise<void>;
+  updateWallpaper: (chatId: string, wallpaperUrl: string | null) => Promise<void>;
   dispatch: React.Dispatch<ChatAction>;
 }
 
@@ -454,6 +465,33 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const togglePin = useCallback(async (chatId: string, isPinned: boolean) => {
+    try {
+      await api.togglePin(chatId, isPinned);
+      dispatch({ type: 'UPDATE_CHAT', payload: { id: chatId, isPinned } });
+    } catch (err) {
+      console.error('Failed to toggle pin:', err);
+    }
+  }, []);
+
+  const updateMute = useCallback(async (chatId: string, isMuted: boolean, mutedUntil?: string | null) => {
+    try {
+      await api.updateMute(chatId, isMuted, mutedUntil);
+      dispatch({ type: 'UPDATE_CHAT', payload: { id: chatId, isMuted, mutedUntil } });
+    } catch (err) {
+      console.error('Failed to update mute:', err);
+    }
+  }, []);
+
+  const updateWallpaper = useCallback(async (chatId: string, wallpaperUrl: string | null) => {
+    try {
+      await api.updateWallpaper(chatId, wallpaperUrl);
+      dispatch({ type: 'UPDATE_CHAT', payload: { id: chatId, wallpaperUrl } });
+    } catch (err) {
+      console.error('Failed to update wallpaper:', err);
+    }
+  }, []);
+
   // Socket event listeners
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -558,7 +596,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [state.activeChat?.id, state.messages[state.activeChat?.id || '']?.length, user?.id]);
 
   return (
-    <ChatContext.Provider value={{ ...state, loadChats, selectChat, deselectChat, loadMessages, sendMessage, sendMediaMessage, deleteMessage, deleteGroup, createDirectChat, createGroupChat, refreshChat, addGroupMembers, removeGroupMember, updateMemberRole, updateGroupInfo, fetchStarredMessages, starMessage, unstarMessage, dispatch }}>
+    <ChatContext.Provider value={{ ...state, loadChats, selectChat, deselectChat, loadMessages, sendMessage, sendMediaMessage, deleteMessage, deleteGroup, createDirectChat, createGroupChat, refreshChat, addGroupMembers, removeGroupMember, updateMemberRole, updateGroupInfo, fetchStarredMessages, starMessage, unstarMessage, togglePin, updateMute, updateWallpaper, dispatch }}>
       {children}
     </ChatContext.Provider>
   );

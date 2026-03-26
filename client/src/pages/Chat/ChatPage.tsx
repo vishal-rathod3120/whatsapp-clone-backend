@@ -220,17 +220,38 @@ function Sidebar() {
 }
 
 function ChatListItem({ chat, isActive, onClick }: { chat: any; isActive: boolean; onClick: () => void }) {
-  const { typingUsers } = useChat();
+  const { typingUsers, togglePin, updateMute } = useChat();
   const typingInChat = typingUsers[chat.id] || [];
+  const [showMenu, setShowMenu] = useState(false);
+  const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setMenuPos({ x: e.clientX, y: e.clientY });
+    setShowMenu(true);
+  };
+
+  useEffect(() => {
+    const hide = () => setShowMenu(false);
+    window.addEventListener('click', hide);
+    return () => window.removeEventListener('click', hide);
+  }, []);
 
   return (
-    <div className={`chat-list-item ${isActive ? 'active' : ''}`} onClick={onClick}>
+    <div 
+      className={`chat-list-item ${isActive ? 'active' : ''}`} 
+      onClick={onClick}
+      onContextMenu={handleContextMenu}
+    >
       <div className="chat-avatar">
         {chat.avatarUrl ? <img src={chat.avatarUrl} alt="" /> : getInitials(chat.title)}
       </div>
       <div className="chat-info">
         <div className="chat-info-top">
-          <span className="chat-name">{chat.title || 'Unknown'}</span>
+          <span className="chat-name">
+            {chat.isPinned && <span className="pin-icon">📌 </span>}
+            {chat.title || 'Unknown'}
+          </span>
           {chat.lastMessageAt && (
             <span className={`chat-time ${chat.unreadCount > 0 ? 'unread' : ''}`}>
               {formatTime(chat.lastMessageAt)}
@@ -239,6 +260,7 @@ function ChatListItem({ chat, isActive, onClick }: { chat: any; isActive: boolea
         </div>
         <div className="chat-preview">
           <span className="chat-last-message">
+            {chat.isMuted && <span className="mute-icon">🔕 </span>}
             {typingInChat.length > 0 ? (
               <span style={{ color: 'var(--accent)' }}>typing...</span>
             ) : chat.lastMessage ? (
@@ -252,6 +274,21 @@ function ChatListItem({ chat, isActive, onClick }: { chat: any; isActive: boolea
           )}
         </div>
       </div>
+
+      {showMenu && (
+        <div 
+          className="chat-item-context-menu" 
+          style={{ top: menuPos.y, left: menuPos.x }}
+          onClick={e => e.stopPropagation()}
+        >
+          <button onClick={() => { togglePin(chat.id, !chat.isPinned); setShowMenu(false); }}>
+            {chat.isPinned ? '📌 Unpin Chat' : '📌 Pin Chat'}
+          </button>
+          <button onClick={() => { updateMute(chat.id, !chat.isMuted); setShowMenu(false); }}>
+            {chat.isMuted ? '🔊 Unmute' : '🔕 Mute'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -292,6 +329,43 @@ function LinkPreview({ url, chatId }: { url: string; chatId: string }) {
         </div>
       </div>
     </a>
+  );
+}
+
+function MessageText({ content, chatId }: { content: string; chatId: string }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isLong = content.length > 500;
+  const displayContent = isLong && !isExpanded ? content.slice(0, 500) + '...' : content;
+
+  return (
+    <div className="message-text">
+      <span>{displayContent}</span>
+      {isLong && (
+        <button 
+          onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
+          style={{ 
+            background: 'none', 
+            border: 'none', 
+            color: 'var(--accent)', 
+            marginLeft: 4, 
+            fontWeight: 500, 
+            fontSize: 13,
+            padding: 0,
+            cursor: 'pointer'
+          }}
+        >
+          {isExpanded ? 'Read less' : 'Read more'}
+        </button>
+      )}
+      {/* Link Preview logic */}
+      {(() => {
+        const match = content.match(/https?:\/\/[^\s]+/);
+        if (match) {
+          return <LinkPreview url={match[0]} chatId={chatId} />;
+        }
+        return null;
+      })()}
+    </div>
   );
 }
 
@@ -491,7 +565,11 @@ function Conversation() {
     <>
     <div className="conversation-panel">
       <div className="conv-header">
-        <button className="back-btn" onClick={() => deselectChat()}>←</button>
+        <button className="icon-btn mobile-back-btn" onClick={() => deselectChat()}>
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+          </svg>
+        </button>
         <div className="chat-avatar" style={{ width: 40, height: 40, fontSize: 16, cursor: 'pointer', marginRight: '12px' }} onClick={() => setShowContactInfo(!showContactInfo)}>
           {activeChat.avatarUrl ? <img src={activeChat.avatarUrl} alt="" /> : getInitials(activeChat.title)}
         </div>
@@ -620,7 +698,13 @@ function Conversation() {
         </div>
       )}
 
-      <div className="messages-area">
+      <div 
+        className="messages-area" 
+        style={activeChat?.wallpaperUrl ? {
+          background: activeChat.wallpaperUrl.startsWith('#') ? activeChat.wallpaperUrl : `url(${activeChat.wallpaperUrl})`,
+          backgroundSize: activeChat.wallpaperUrl.startsWith('#') ? 'auto' : 'cover'
+        } : {}}
+      >
         {filteredMessages.map((msg, i) => {
           const msgDate = formatDate(msg.createdAt);
           const showDate = msgDate !== lastDate;
@@ -723,30 +807,30 @@ function Conversation() {
                             </div>
                           </div>
                         ) : (
-                          <div className="message-text">
-                            <span>{msg.textContent}</span>
-                            {/* Link Preview */}
-                            {(() => {
-                              const match = msg.textContent.match(/https?:\/\/[^\s]+/);
-                              if (match) {
-                                return <LinkPreview url={match[0]} chatId={activeChat.id} />;
-                              }
-                              return null;
-                            })()}
-                          </div>
+                          <MessageText content={msg.textContent} chatId={activeChat.id} />
                         )
                       )}
                       <span className="message-meta">
                         {msg.isStarred && <span className="message-starred" style={{ marginRight: 4 }}>⭐</span>}
                         {msg.editedAt && <span className="message-edited">edited</span>}
                         <span className="message-time">{formatTime(msg.createdAt)}</span>
-                         {isSent && (
-                          <span className={`message-status ${msg.status || 'sent'}`}>
-                            {msg.status === 'sending' ? '🕐' : 
-                             msg.status === 'read' ? '✓✓' : 
-                             msg.status === 'delivered' ? '✓✓' : '✓'}
-                          </span>
-                        )}
+                            {isSent && !msg.isDeleted && (
+                              <span className={`message-status ${msg.status?.toLowerCase()}`}>
+                                {msg.status === 'read' ? (
+                                  <svg viewBox="0 0 16 11" width="16" height="11" fill="currentColor">
+                                    <path d="M15.01 1.91c-.34-.33-.9-.33-1.24 0L5.27 10.41 1.23 6.37c-.34-.34-.9-.34-1.24 0-.34.34-.34.9 0 1.24l4.66 4.66c.34.34.9.34 1.24 0l9.12-9.12c.34-.34.34-.9 0-1.24zM11.29 1.91c-.34-.33-.9-.33-1.24 0l-1.24 1.24 1.24 1.24 1.24-1.24c.34-.33.34-.9 0-1.24z"/>
+                                  </svg>
+                                ) : msg.status === 'delivered' ? (
+                                  <svg viewBox="0 0 16 11" width="16" height="11" fill="currentColor">
+                                    <path d="M15.01 1.91c-.34-.33-.9-.33-1.24 0L5.27 10.41 1.23 6.37c-.34-.34-.9-.34-1.24 0-.34.34-.34.9 0 1.24l4.66 4.66c.34.34.9.34 1.24 0l9.12-9.12c.34-.34.34-.9 0-1.24zM11.29 1.91c-.34-.33-.9-.33-1.24 0l-1.24 1.24 1.24 1.24 1.24-1.24c.34-.33.34-.9 0-1.24z" opacity="0.6"/>
+                                  </svg>
+                                ) : msg.status === 'sending' ? '🕐' : (
+                                  <svg viewBox="0 0 16 11" width="16" height="11" fill="currentColor">
+                                    <path d="M11.23 6.37c-.34-.33-.9-.33-1.24 0l-4.66 4.66-1.23-1.24c-.34-.33-.9-.33-1.24 0-.34.33-.34.9 0 1.24l1.85 1.85c.34.34.9.34 1.24 0l5.28-5.27c.34-.34.34-.9 0-1.24z" opacity="0.6"/>
+                                  </svg>
+                                )}
+                              </span>
+                            )}
                         <button 
                           className="message-options-btn"
                           onClick={(e) => {

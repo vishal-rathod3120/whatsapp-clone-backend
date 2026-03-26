@@ -1220,3 +1220,56 @@
 .highlight-msg .message-bubble {
   animation: highlightFlash 1.5s ease;
 }
+
+.pin-icon {
+  font-size: 13px;
+  color: var(--accent);
+  margin-right: 4px;
+}
+
+.mute-icon {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-right: 4px;
+}
+
+.chat-item-context-menu {
+  position: fixed;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 8px 0;
+  z-index: 1000;
+  min-width: 150px;
+  animation: contextMenuFadeIn 150ms ease;
+}
+
+.chat-item-context-menu button {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  text-align: left;
+  font-size: 14px;
+  color: var(--text-primary);
+  transition: background var(--transition-fast);
+}
+
+.chat-item-context-menu button:hover {
+  background: var(--bg-hover);
+}
+
+.chat-item-context-menu button.danger {
+  color: #f15c5c;
+}
+
+.mobile-back-btn {
+  display: none !important;
+  margin-right: 8px;
+}
+
+@media (max-width: 768px) {
+  .mobile-back-btn {
+    display: flex !important;
+  }
+}

@@ -103,4 +103,35 @@ export class ChatsController {
   ) {
     return this.chatsService.updateDisappearingTimer(chatId, user.sub, body.timer);
   }
+
+  @Patch(':chatId/pin')
+  @ApiOperation({ summary: 'Pin or unpin a chat' })
+  async togglePin(
+    @Param('chatId') chatId: string,
+    @Body() body: { isPinned: boolean },
+    @CurrentUser() user: JwtPayload
+  ) {
+    return this.chatsService.togglePin(chatId, user.sub, body.isPinned);
+  }
+
+  @Patch(':chatId/mute')
+  @ApiOperation({ summary: 'Mute or unmute a chat' })
+  async updateMute(
+    @Param('chatId') chatId: string,
+    @Body() body: { isMuted: boolean; mutedUntil?: string },
+    @CurrentUser() user: JwtPayload
+  ) {
+    const mutedUntil = body.mutedUntil ? new Date(body.mutedUntil) : null;
+    return this.chatsService.updateMute(chatId, user.sub, body.isMuted, mutedUntil);
+  }
+
+  @Patch(':chatId/wallpaper')
+  @ApiOperation({ summary: 'Update chat wallpaper' })
+  async updateWallpaper(
+    @Param('chatId') chatId: string,
+    @Body() body: { wallpaperUrl: string | null },
+    @CurrentUser() user: JwtPayload
+  ) {
+    return this.chatsService.updateWallpaper(chatId, user.sub, body.wallpaperUrl);
+  }
 }

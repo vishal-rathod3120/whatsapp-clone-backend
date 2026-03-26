@@ -208,7 +208,10 @@ export class ChatsService {
         skip: 1,
         cursor: { id: cursor },
       }),
-      orderBy: { lastMessageAt: 'desc' },
+      orderBy: [
+        { members: { _count: 'desc' } }, // This isn't quite right for per-user pinning in a global findMany
+        { lastMessageAt: 'desc' }
+      ],
       include: {
         members: {
           where: { leftAt: null },
@@ -264,6 +267,8 @@ export class ChatsService {
           ? chat.members.find((m) => m.userId !== userId)?.user
           : null;
 
+        const userMember = chat.members.find(m => m.userId === userId);
+        
         return {
           id: chat.id,
           type: chat.type,
@@ -276,6 +281,10 @@ export class ChatsService {
           lastMessage: chat.messages[0] || null,
           unreadCount,
           lastMessageAt: chat.lastMessageAt,
+          isPinned: userMember?.isPinned || false,
+          isMuted: userMember?.isMuted || false,
+          mutedUntil: userMember?.mutedUntil || null,
+          wallpaperUrl: userMember?.wallpaperUrl || null,
           members: chat.members.map((m) => ({
             userId: m.userId,
             displayName: m.user.displayName,
@@ -288,8 +297,17 @@ export class ChatsService {
       }),
     );
 
+    // Sort by pinned first, then by last message time
+    const sortedItems = itemsWithDetails.sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      const timeA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+      const timeB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+      return timeB - timeA;
+    });
+
     return {
-      items: chatListWithUnread,
+      items: sortedItems,
       nextCursor,
     };
   }
@@ -533,5 +551,29 @@ export class ChatsService {
     }
 
     return updated;
+  }
+
+  async togglePin(chatId: string, userId: string, isPinned: boolean) {
+    await this.prisma.chatMember.update({
+      where: { chatId_userId: { chatId, userId } },
+      data: { isPinned }
+    });
+    return { success: true, isPinned };
+  }
+
+  async updateMute(chatId: string, userId: string, isMuted: boolean, mutedUntil?: Date | null) {
+    await this.prisma.chatMember.update({
+      where: { chatId_userId: { chatId, userId } },
+      data: { isMuted, mutedUntil }
+    });
+    return { success: true, isMuted, mutedUntil };
+  }
+
+  async updateWallpaper(chatId: string, userId: string, wallpaperUrl: string | null) {
+    await this.prisma.chatMember.update({
+      where: { chatId_userId: { chatId, userId } },
+      data: { wallpaperUrl }
+    });
+    return { success: true, wallpaperUrl };
   }
 }

@@ -250,6 +250,27 @@ class ApiService {
       body: JSON.stringify(data),
     });
   }
+
+  async togglePin(chatId: string, isPinned: boolean) {
+    return this.request<any>(`/chats/${chatId}/pin`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isPinned }),
+    });
+  }
+
+  async updateMute(chatId: string, isMuted: boolean, mutedUntil?: string | null) {
+    return this.request<any>(`/chats/${chatId}/mute`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isMuted, mutedUntil }),
+    });
+  }
+
+  async updateWallpaper(chatId: string, wallpaperUrl: string | null) {
+    return this.request<any>(`/chats/${chatId}/wallpaper`, {
+      method: 'PATCH',
+      body: JSON.stringify({ wallpaperUrl }),
+    });
+  }
 }
 
 export const api = new ApiService();

@@ -52,7 +52,7 @@ interface Props {
 
 export function ContactInfoPanel({ chat, onClose, onImageClick }: Props) {
   const { user } = useAuth();
-  const { messages, deleteGroup, addGroupMembers, removeGroupMember, updateMemberRole, updateGroupInfo } = useChat();
+  const { messages, deleteGroup, addGroupMembers, removeGroupMember, updateMemberRole, updateGroupInfo, updateMute, updateWallpaper } = useChat();
   const chatMessages = messages[chat.id] || [];
 
   // Local UI state
@@ -274,6 +274,75 @@ export function ContactInfoPanel({ chat, onClose, onImageClick }: Props) {
             <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.4 }}>
               Make messages in this chat disappear after the selected time.
             </div>
+          </div>
+        </div>
+        <div className="contact-info-divider" />
+
+        {/* Mute Notifications */}
+        <div className="contact-info-section">
+          <div className="contact-info-field">
+            <div className="contact-info-field-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              🔕 Mute Notifications
+            </div>
+            <select
+              value={chat.isMuted ? (chat.mutedUntil || 'always') : 'none'}
+              onChange={async (e) => {
+                const val = e.target.value;
+                if (val === 'none') {
+                  await updateMute(chat.id, false, null);
+                } else {
+                  const until = val === 'always' ? null : val;
+                  await updateMute(chat.id, true, until);
+                }
+              }}
+              style={{
+                width: '100%',
+                marginTop: 8,
+                padding: '8px 12px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--bg-input)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-light)',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="none">Off</option>
+              <option value={new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString()}>8 hours</option>
+              <option value={new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()}>1 week</option>
+              <option value="always">Always</option>
+            </select>
+          </div>
+        </div>
+        <div className="contact-info-divider" />
+
+        {/* Chat Wallpaper */}
+        <div className="contact-info-section">
+          <div className="contact-info-field">
+            <div className="contact-info-field-label">🖼️ Chat Wallpaper</div>
+            <select
+              value={chat.wallpaperUrl || ''}
+              onChange={async (e) => {
+                const val = e.target.value || null;
+                await updateWallpaper(chat.id, val);
+              }}
+              style={{
+                width: '100%',
+                marginTop: 8,
+                padding: '8px 12px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--bg-input)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-light)',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">Default</option>
+              <option value="#f0f2f5">Light Gray</option>
+              <option value="#e5ddd5">Classic WhatsApp</option>
+              <option value="#0b141a">Obsidian</option>
+              <option value="#2c3e50">Midnight Blue</option>
+              <option value="#27ae60">Forest Green</option>
+            </select>
           </div>
         </div>
         <div className="contact-info-divider" />
