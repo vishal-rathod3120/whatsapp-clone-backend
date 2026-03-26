@@ -142,8 +142,29 @@ export function CallProvider({ children }: { children: ReactNode }) {
     return pc;
   }, []);
 
+  // Guard flag to prevent concurrent getUserMedia calls
+  const isGettingMedia = useRef(false);
+
   // Get media stream
   const getMedia = useCallback(async (type: 'AUDIO' | 'VIDEO') => {
+    // If already acquiring media, wait for it to finish instead of calling again
+    if (isGettingMedia.current) {
+      console.log('getUserMedia already in progress, waiting...');
+      await new Promise<void>(resolve => {
+        const check = setInterval(() => {
+          if (!isGettingMedia.current) { clearInterval(check); resolve(); }
+        }, 100);
+      });
+      return localStreamRef.current;
+    }
+
+    // If we already have a live stream, return it directly
+    if (localStreamRef.current) {
+      console.log('Reusing existing local stream');
+      return localStreamRef.current;
+    }
+
+    isGettingMedia.current = true;
     try {
       console.log(`Getting media: ${type}`);
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -157,6 +178,8 @@ export function CallProvider({ children }: { children: ReactNode }) {
       console.error('Failed to get media:', err);
       alert('Could not access camera/microphone. Please check permissions and ensure you have media devices connected.');
       return null;
+    } finally {
+      isGettingMedia.current = false;
     }
   }, []);
 
@@ -300,6 +323,18 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
     const onOffer = async (data: { callId: string; sdp: string; from: string }) => {
       console.log(`WebRTC offer received from ${data.from}`);
+
+      // Wait for local stream to be available (acceptCall's getMedia may still be in progress)
+      let waited = 0;
+      while (!localStreamRef.current && waited < 5000) {
+        await new Promise(r => setTimeout(r, 100));
+        waited += 100;
+      }
+      if (!localStreamRef.current) {
+        console.error('Local stream not available after waiting, cannot process offer');
+        return;
+      }
+
       // Create a peer connection for the caller
       const pc = createPeerForUser(data.from);
       try {
