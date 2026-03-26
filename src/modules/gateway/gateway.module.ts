@@ -22,7 +22,7 @@ import { MessagesModule } from '../messages/messages.module';
     forwardRef(() => MessagesModule)
   ],
   providers: [ChatGateway, CallGateway, SocketSessionService],
-  exports: [SocketSessionService, ChatGateway],
+  exports: [SocketSessionService, ChatGateway, CallGateway],
 })
 export class GatewayModule {
   private readonly redisIoAdapter: RedisIoAdapter;

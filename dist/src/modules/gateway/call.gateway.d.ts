@@ -3,6 +3,7 @@ import { SocketSessionService } from './socket-session.service';
 import { PresenceRepository } from '../../redis/presence.repository';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CallType } from '../../common/enums';
+import { ChatGateway } from './chat.gateway';
 interface WebRTCPayload {
     callId: string;
     sdp?: string;
@@ -12,8 +13,10 @@ export declare class CallGateway {
     private socketSessionService;
     private presenceRepository;
     private prisma;
+    private chatGateway;
     server: Server;
-    constructor(socketSessionService: SocketSessionService, presenceRepository: PresenceRepository, prisma: PrismaService);
+    constructor(socketSessionService: SocketSessionService, presenceRepository: PresenceRepository, prisma: PrismaService, chatGateway: ChatGateway);
+    private get io();
     handleCallInitiate(socket: Socket, payload: {
         chatId: string;
         type: CallType;

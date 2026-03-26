@@ -43,7 +43,7 @@ exports.GatewayModule = GatewayModule = __decorate([
             (0, common_1.forwardRef)(() => messages_module_1.MessagesModule)
         ],
         providers: [chat_gateway_1.ChatGateway, call_gateway_1.CallGateway, socket_session_service_1.SocketSessionService],
-        exports: [socket_session_service_1.SocketSessionService, chat_gateway_1.ChatGateway],
+        exports: [socket_session_service_1.SocketSessionService, chat_gateway_1.ChatGateway, call_gateway_1.CallGateway],
     }),
     __metadata("design:paramtypes", [redis_service_1.RedisService])
 ], GatewayModule);

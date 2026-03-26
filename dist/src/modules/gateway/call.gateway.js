@@ -8,6 +8,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CallGateway = void 0;
 const websockets_1 = require("@nestjs/websockets");
@@ -16,11 +19,17 @@ const socket_session_service_1 = require("./socket-session.service");
 const presence_repository_1 = require("../../redis/presence.repository");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const enums_1 = require("../../common/enums");
+const common_1 = require("@nestjs/common");
+const chat_gateway_1 = require("./chat.gateway");
 let CallGateway = class CallGateway {
-    constructor(socketSessionService, presenceRepository, prisma) {
+    constructor(socketSessionService, presenceRepository, prisma, chatGateway) {
         this.socketSessionService = socketSessionService;
         this.presenceRepository = presenceRepository;
         this.prisma = prisma;
+        this.chatGateway = chatGateway;
+    }
+    get io() {
+        return this.chatGateway.server ?? this.server;
     }
     async handleCallInitiate(socket, payload) {
         try {
@@ -61,8 +70,12 @@ let CallGateway = class CallGateway {
             });
             const callerMember = call.chat.members.find((m) => m.userId === userId);
             const callees = call.chat.members.filter((m) => m.userId !== userId);
+            console.log(`[CallGateway] Notifying callees:`, callees.map(c => c.userId));
             for (const callee of callees) {
-                this.server.to(`user:${callee.userId}`).emit('call:incoming', {
+                const room = `user:${callee.userId}`;
+                const sockets = await this.io.in(room).fetchSockets();
+                console.log(`[CallGateway] Room ${room} has ${sockets.length} socket(s)`);
+                this.io.to(room).emit('call:incoming', {
                     callId: call.id,
                     chatId: payload.chatId,
                     caller: {
@@ -86,7 +99,7 @@ let CallGateway = class CallGateway {
                                 endReason: 'timeout',
                             },
                         });
-                        this.server.to(`user:${userId}`).emit('call:timeout', {
+                        this.io.to(`user:${userId}`).emit('call:timeout', {
                             callId: call.id,
                         });
                     }
@@ -126,7 +139,7 @@ let CallGateway = class CallGateway {
                     joinedAt: new Date(),
                 },
             });
-            this.server.to(`user:${call.callerId}`).emit('call:accepted', {
+            this.io.to(`user:${call.callerId}`).emit('call:accepted', {
                 callId: payload.callId,
                 acceptedBy: userId,
             });
@@ -149,7 +162,7 @@ let CallGateway = class CallGateway {
                     endReason: payload.reason || 'rejected',
                 },
             });
-            this.server.to(`user:${call.callerId}`).emit('call:rejected', {
+            this.io.to(`user:${call.callerId}`).emit('call:rejected', {
                 callId: payload.callId,
                 rejectedBy: userId,
                 reason: payload.reason,
@@ -200,7 +213,7 @@ let CallGateway = class CallGateway {
             if (call.status === enums_1.CallStatus.RINGING) {
                 call.chat.members.forEach((m) => {
                     if (m.userId !== userId) {
-                        this.server.to(`user:${m.userId}`).emit('call:ended', {
+                        this.io.to(`user:${m.userId}`).emit('call:ended', {
                             callId: payload.callId,
                             endedBy: userId,
                             reason: payload.reason,
@@ -211,7 +224,7 @@ let CallGateway = class CallGateway {
             else {
                 call.participants.forEach((p) => {
                     if (p.userId !== userId) {
-                        this.server.to(`user:${p.userId}`).emit('call:ended', {
+                        this.io.to(`user:${p.userId}`).emit('call:ended', {
                             callId: payload.callId,
                             endedBy: userId,
                             reason: payload.reason,
@@ -248,7 +261,7 @@ let CallGateway = class CallGateway {
                 return;
             call.participants.forEach((p) => {
                 if (p.userId !== userId) {
-                    this.server.to(`user:${p.userId}`).emit(event, {
+                    this.io.to(`user:${p.userId}`).emit(event, {
                         callId: payload.callId,
                         sdp: payload.sdp,
                         candidate: payload.candidate,
@@ -314,8 +327,10 @@ exports.CallGateway = CallGateway = __decorate([
         cors: { origin: '*' },
         namespace: '/',
     }),
+    __param(3, (0, common_1.Inject)((0, common_1.forwardRef)(() => chat_gateway_1.ChatGateway))),
     __metadata("design:paramtypes", [socket_session_service_1.SocketSessionService,
         presence_repository_1.PresenceRepository,
-        prisma_service_1.PrismaService])
+        prisma_service_1.PrismaService,
+        chat_gateway_1.ChatGateway])
 ], CallGateway);
 //# sourceMappingURL=call.gateway.js.map
