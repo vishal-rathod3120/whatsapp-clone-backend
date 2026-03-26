@@ -2,6 +2,7 @@ import { createContext, useContext, useReducer, useEffect, useCallback } from 'r
 import type { ReactNode } from 'react';
 import { api } from '../services/api';
 import { socketService } from '../services/socket';
+import { playMessageSound, playSentSound } from '../services/notificationSound';
 import { useAuth } from './AuthContext';
 
 function generateClientId() {
@@ -24,8 +25,9 @@ interface Message {
   clientTempId?: string;
   status?: string;
   attachmentId?: string;
-  attachmentUrl?: string; // Optimistic or actual URL
+  attachmentUrl?: string;
   attachmentMimeType?: string;
+  reactions?: any[];
 }
 
 interface Chat {
@@ -46,6 +48,7 @@ interface ChatState {
   typingUsers: Record<string, string[]>;
   isLoadingChats: boolean;
   onlineUsers: string[];
+  userPresence: Record<string, { status: string; lastSeen?: string }>;
 }
 
 type ChatAction =
@@ -63,7 +66,8 @@ type ChatAction =
   | { type: 'DELETE_MESSAGE'; payload: { id: string; chatId: string; forEveryone: boolean } }
   | { type: 'UPDATE_MESSAGE_STATUS'; payload: { messageId: string; chatId: string; status: 'delivered' | 'read' } }
   | { type: 'SET_ONLINE_USERS'; payload: string[] }
-  | { type: 'UPDATE_CHAT'; payload: Chat };
+  | { type: 'UPDATE_CHAT'; payload: Chat }
+  | { type: 'UPDATE_PRESENCE'; payload: { userId: string; status: string; lastSeen?: string } };
 
 function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
@@ -159,6 +163,13 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
     }
     case 'SET_ONLINE_USERS':
       return { ...state, onlineUsers: action.payload };
+    case 'UPDATE_PRESENCE': {
+      const { userId, status, lastSeen } = action.payload;
+      return {
+        ...state,
+        userPresence: { ...state.userPresence, [userId]: { status, lastSeen } },
+      };
+    }
     default:
       return state;
   }
@@ -171,11 +182,13 @@ const initialState: ChatState = {
   typingUsers: {},
   isLoadingChats: true,
   onlineUsers: [],
+  userPresence: {},
 };
 
 interface ChatContextType extends ChatState {
   loadChats: () => Promise<void>;
   selectChat: (chat: Chat) => void;
+  deselectChat: () => void;
   loadMessages: (chatId: string) => Promise<void>;
   sendMessage: (chatId: string, text: string, replyToMessageId?: string) => void;
   sendMediaMessage: (chatId: string, file: File, type: 'IMAGE' | 'VIDEO' | 'FILE') => Promise<void>;
@@ -212,6 +225,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_ACTIVE_CHAT', payload: chat });
     dispatch({ type: 'UPDATE_UNREAD', payload: { chatId: chat.id, count: 0 } });
     api.markChatRead(chat.id).catch(() => {});
+  }, []);
+
+  const deselectChat = useCallback(() => {
+    dispatch({ type: 'SET_ACTIVE_CHAT', payload: null });
   }, []);
 
   const loadMessages = useCallback(async (chatId: string) => {
@@ -368,10 +385,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     const onNewMessage = (data: { message: Message }) => {
       dispatch({ type: 'ADD_MESSAGE', payload: data.message });
       socketService.markDelivered(data.message.id);
+      // Play sound for messages from other users (not currently viewed chat)
+      if (data.message.senderId !== user?.id) {
+        playMessageSound();
+      }
     };
 
     const onSentAck = (data: { clientTempId: string; message: Message }) => {
       dispatch({ type: 'SENT_ACK', payload: data });
+      playSentSound();
     };
 
     const onTyping = (data: { chatId: string; userId: string; isTyping: boolean }) => {
@@ -394,12 +416,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_ONLINE_USERS', payload: userIds });
     };
 
+    const onPresenceUpdate = (data: { userId: string; status: string; lastSeen?: string }) => {
+      dispatch({ type: 'UPDATE_PRESENCE', payload: data });
+    };
+
     const onDeliveredUpdate = (data: { messageId: string; chatId: string; deliveredAt: string }) => {
       dispatch({ type: 'UPDATE_MESSAGE_STATUS', payload: { messageId: data.messageId, chatId: data.chatId, status: 'delivered' } });
     };
 
     const onSeenUpdate = (data: { messageId: string; chatId: string; seenBy: string; seenAt: string }) => {
       dispatch({ type: 'UPDATE_MESSAGE_STATUS', payload: { messageId: data.messageId, chatId: data.chatId, status: 'read' } });
+    };
+
+    const onReactions = (data: { chatId: string; messageId: string; reactions: any[] }) => {
+      dispatch({ type: 'UPDATE_MESSAGE', payload: { id: data.messageId, chatId: data.chatId, updates: { reactions: data.reactions } } });
     };
 
     socketService.on('chat:new', onNewMessage);
@@ -409,8 +439,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     socketService.on('message:edited', onMessageEdited);
     socketService.on('chat:deleted', onChatDeleted);
     socketService.on('user:online', onUserOnline);
+    socketService.on('presence:update', onPresenceUpdate);
     socketService.on('chat:delivered:update', onDeliveredUpdate);
     socketService.on('chat:seen:update', onSeenUpdate);
+    socketService.on('message:reactions', onReactions);
 
     return () => {
       socketService.off('chat:new', onNewMessage);
@@ -420,8 +452,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       socketService.off('message:edited', onMessageEdited);
       socketService.off('chat:deleted', onChatDeleted);
       socketService.off('user:online', onUserOnline);
+      socketService.off('presence:update', onPresenceUpdate);
       socketService.off('chat:delivered:update', onDeliveredUpdate);
       socketService.off('chat:seen:update', onSeenUpdate);
+      socketService.off('message:reactions', onReactions);
     };
   }, [isAuthenticated]);
 
@@ -438,7 +472,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [state.activeChat?.id, state.messages[state.activeChat?.id || '']?.length, user?.id]);
 
   return (
-    <ChatContext.Provider value={{ ...state, loadChats, selectChat, loadMessages, sendMessage, sendMediaMessage, deleteMessage, deleteGroup, createDirectChat, createGroupChat, refreshChat, addGroupMembers, removeGroupMember, updateMemberRole, updateGroupInfo, dispatch }}>
+    <ChatContext.Provider value={{ ...state, loadChats, selectChat, deselectChat, loadMessages, sendMessage, sendMediaMessage, deleteMessage, deleteGroup, createDirectChat, createGroupChat, refreshChat, addGroupMembers, removeGroupMember, updateMemberRole, updateGroupInfo, dispatch }}>
       {children}
     </ChatContext.Provider>
   );

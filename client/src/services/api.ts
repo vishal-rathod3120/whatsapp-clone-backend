@@ -94,6 +94,22 @@ class ApiService {
 
   // Users
   async getProfile() { return this.request<any>('/users/me'); }
+
+  // Status/Stories
+  async createTextStatus(textContent: string, bgColor: string) {
+    return this.request<any>('/status/text', { method: 'POST', body: JSON.stringify({ textContent, bgColor }) });
+  }
+  async createImageStatus(imageUrl: string, caption?: string) {
+    return this.request<any>('/status/image', { method: 'POST', body: JSON.stringify({ imageUrl, caption }) });
+  }
+  async getMyStatuses() { return this.request<any>('/status/mine'); }
+  async getContactStatuses() { return this.request<any>('/status/contacts'); }
+  async markStatusViewed(statusId: string) { return this.request<any>(`/status/${statusId}/view`, { method: 'POST' }); }
+  async deleteStatus(statusId: string) { return this.request<any>(`/status/${statusId}`, { method: 'DELETE' }); }
+  async getCallHistory(cursor?: string) {
+    const qs = cursor ? `?cursor=${cursor}` : '';
+    return this.request<any>(`/calls${qs}`);
+  }
   async updateProfile(data: any) { return this.request<any>('/users/me', { method: 'PATCH', body: JSON.stringify(data) }); }
   async uploadAvatar(file: File) {
     const token = this.getToken();

@@ -254,6 +254,46 @@ let ChatGateway = class ChatGateway {
             socket.emit('chat:error', { message: 'Failed to edit message' });
         }
     }
+    async handleReaction(socket, payload) {
+        try {
+            const userId = this.socketSessionService.getUserIdBySocket(socket.id);
+            if (!userId)
+                return;
+            if (payload.emoji) {
+                await this.prisma.messageReaction.upsert({
+                    where: { messageId_userId: { messageId: payload.messageId, userId } },
+                    create: { messageId: payload.messageId, userId, emoji: payload.emoji },
+                    update: { emoji: payload.emoji },
+                });
+            }
+            else {
+                await this.prisma.messageReaction.deleteMany({
+                    where: { messageId: payload.messageId, userId },
+                });
+            }
+            const reactions = await this.prisma.messageReaction.findMany({
+                where: { messageId: payload.messageId },
+                include: { user: { select: { id: true, displayName: true } } },
+            });
+            const chat = await this.prisma.chat.findUnique({
+                where: { id: payload.chatId },
+                include: { members: { where: { leftAt: null }, select: { userId: true } } },
+            });
+            if (chat) {
+                for (const member of chat.members) {
+                    this.server.to(`user:${member.userId}`).emit('message:reactions', {
+                        chatId: payload.chatId,
+                        messageId: payload.messageId,
+                        reactions,
+                    });
+                }
+            }
+        }
+        catch (error) {
+            console.error('Reaction error:', error);
+            socket.emit('chat:error', { message: 'Failed to react' });
+        }
+    }
 };
 exports.ChatGateway = ChatGateway;
 __decorate([
@@ -296,6 +336,12 @@ __decorate([
     __metadata("design:paramtypes", [socket_io_1.Socket, Object]),
     __metadata("design:returntype", Promise)
 ], ChatGateway.prototype, "handleEditMessage", null);
+__decorate([
+    (0, websockets_1.SubscribeMessage)('chat:react'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [socket_io_1.Socket, Object]),
+    __metadata("design:returntype", Promise)
+], ChatGateway.prototype, "handleReaction", null);
 exports.ChatGateway = ChatGateway = __decorate([
     (0, websockets_1.WebSocketGateway)({
         cors: { origin: '*' },

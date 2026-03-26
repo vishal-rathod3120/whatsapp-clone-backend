@@ -308,4 +308,50 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       socket.emit('chat:error', { message: 'Failed to edit message' });
     }
   }
+  @SubscribeMessage('chat:react')
+  async handleReaction(socket: Socket, payload: { chatId: string; messageId: string; emoji: string | null }) {
+    try {
+      const userId = this.socketSessionService.getUserIdBySocket(socket.id);
+      if (!userId) return;
+
+      if (payload.emoji) {
+        // Upsert reaction (one reaction per user per message)
+        await this.prisma.messageReaction.upsert({
+          where: { messageId_userId: { messageId: payload.messageId, userId } },
+          create: { messageId: payload.messageId, userId, emoji: payload.emoji },
+          update: { emoji: payload.emoji },
+        });
+      } else {
+        // Remove reaction
+        await this.prisma.messageReaction.deleteMany({
+          where: { messageId: payload.messageId, userId },
+        });
+      }
+
+      // Get all reactions for this message
+      const reactions = await this.prisma.messageReaction.findMany({
+        where: { messageId: payload.messageId },
+        include: { user: { select: { id: true, displayName: true } } },
+      });
+
+      // Broadcast to all chat members
+      const chat = await this.prisma.chat.findUnique({
+        where: { id: payload.chatId },
+        include: { members: { where: { leftAt: null }, select: { userId: true } } },
+      });
+
+      if (chat) {
+        for (const member of chat.members) {
+          this.server.to(`user:${member.userId}`).emit('message:reactions', {
+            chatId: payload.chatId,
+            messageId: payload.messageId,
+            reactions,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Reaction error:', error);
+      socket.emit('chat:error', { message: 'Failed to react' });
+    }
+  }
 }

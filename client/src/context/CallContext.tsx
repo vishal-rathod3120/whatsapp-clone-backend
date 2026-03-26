@@ -12,11 +12,17 @@ interface CallInfo {
   remoteAvatar?: string;
 }
 
+interface PeerEntry {
+  pc: RTCPeerConnection;
+  stream: MediaStream | null;
+}
+
 interface CallContextType {
   callState: CallState;
   callInfo: CallInfo | null;
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
+  remoteStreams: Map<string, MediaStream>;
   isMuted: boolean;
   isVideoOff: boolean;
   callDuration: number;
@@ -39,14 +45,15 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const [callInfo, setCallInfo] = useState<CallInfo | null>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
 
-  const peerConnection = useRef<RTCPeerConnection | null>(null);
+  // Multi-peer map: userId -> PeerEntry
+  const peers = useRef<Map<string, PeerEntry>>(new Map());
   const durationInterval = useRef<ReturnType<typeof setInterval> | null>(null);
-  const ringtoneRef = useRef<HTMLAudioElement | null>(null);
-  
+
   // Refs for signaling to avoid useEffect re-registration races
   const callStateRef = useRef<CallState>(callState);
   const callInfoRef = useRef<CallInfo | null>(callInfo);
@@ -59,14 +66,16 @@ export function CallProvider({ children }: { children: ReactNode }) {
   // Cleanup helper
   const cleanup = useCallback(() => {
     console.log('Call cleanup triggered');
-    peerConnection.current?.close();
-    peerConnection.current = null;
-    
+    // Close all peer connections
+    peers.current.forEach((entry) => entry.pc.close());
+    peers.current.clear();
+
     // Stop all tracks in the current localStreamRef
     localStreamRef.current?.getTracks().forEach(t => t.stop());
     
     setLocalStream(null);
     setRemoteStream(null);
+    setRemoteStreams(new Map());
     setCallState('idle');
     callStateRef.current = 'idle';
     setCallInfo(null);
@@ -77,12 +86,11 @@ export function CallProvider({ children }: { children: ReactNode }) {
     setCallDuration(0);
     if (durationInterval.current) clearInterval(durationInterval.current);
     durationInterval.current = null;
-    ringtoneRef.current?.pause();
   }, []);
 
-  // Create peer connection
-  const createPeer = useCallback(() => {
-    console.log('Creating RTCPeerConnection');
+  // Create peer connection for a specific remote user
+  const createPeerForUser = useCallback((remoteUserId: string) => {
+    console.log(`Creating RTCPeerConnection for user: ${remoteUserId}`);
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
 
     pc.onicecandidate = (e) => {
@@ -90,23 +98,47 @@ export function CallProvider({ children }: { children: ReactNode }) {
         socketService.emit('call:ice-candidate', {
           callId: callInfoRef.current.callId,
           candidate: e.candidate,
+          targetUserId: remoteUserId,
         });
       }
     };
 
     pc.ontrack = (e) => {
-      console.log('Remote track received');
-      setRemoteStream(e.streams[0]);
+      console.log(`Remote track received from user: ${remoteUserId}`);
+      const stream = e.streams[0];
+      // Update the single remoteStream for backward compatibility (1:1 calls)
+      setRemoteStream(stream);
+      // Also update the multi-peer remoteStreams map
+      setRemoteStreams(prev => {
+        const next = new Map(prev);
+        next.set(remoteUserId, stream);
+        return next;
+      });
     };
 
     pc.oniceconnectionstatechange = () => {
-      console.log('ICE connection state:', pc.iceConnectionState);
+      console.log(`ICE connection state (${remoteUserId}):`, pc.iceConnectionState);
       if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
-        endCall();
+        // Remove this peer silently; if all peers disconnect, end the call
+        peers.current.delete(remoteUserId);
+        setRemoteStreams(prev => {
+          const next = new Map(prev);
+          next.delete(remoteUserId);
+          return next;
+        });
+        if (peers.current.size === 0) {
+          endCall();
+        }
       }
     };
 
-    peerConnection.current = pc;
+    // Add local tracks
+    const stream = localStreamRef.current;
+    if (stream) {
+      stream.getTracks().forEach(t => pc.addTrack(t, stream));
+    }
+
+    peers.current.set(remoteUserId, { pc, stream: null });
     return pc;
   }, []);
 
@@ -151,9 +183,6 @@ export function CallProvider({ children }: { children: ReactNode }) {
     const stream = await getMedia(callInfoRef.current.type);
     if (!stream) return;
 
-    const pc = createPeer();
-    stream.getTracks().forEach(t => pc.addTrack(t, stream));
-
     socketService.emit('call:accept', { callId: callInfoRef.current.callId });
     setCallState('connected');
     callStateRef.current = 'connected';
@@ -161,7 +190,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     durationInterval.current = setInterval(() => {
       setCallDuration(prev => prev + 1);
     }, 1000);
-  }, [getMedia, createPeer]);
+  }, [getMedia]);
 
   // Reject incoming call
   const rejectCall = useCallback(() => {
@@ -211,9 +240,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     const onIncomingCall = (data: { callId: string; chatId: string; caller: any; type: 'AUDIO' | 'VIDEO' }) => {
       console.log('Incoming call received:', data.callId, '| current state:', callStateRef.current);
       if (callStateRef.current !== 'idle') {
-        // If we have no peer connection and no stream, we're effectively idle despite stale ref
-        // Force reset to accept this call
-        if (!peerConnection.current && !localStreamRef.current) {
+        if (!peers.current.size && !localStreamRef.current) {
           console.warn('State was non-idle but no active call found — force resetting to accept.');
           callStateRef.current = 'idle';
         } else {
@@ -238,69 +265,71 @@ export function CallProvider({ children }: { children: ReactNode }) {
       callStateRef.current = 'incoming';
     };
 
-    const onCallAccepted = async (data: { callId: string }) => {
-      console.log('Call was accepted by remote user');
+    const onCallAccepted = async (data: { callId: string; acceptedBy: string }) => {
+      console.log('Call was accepted by remote user:', data.acceptedBy);
       const stream = localStreamRef.current;
       if (!stream) {
         console.error('No local stream available when call was accepted');
         return;
       }
       
-      const pc = createPeer();
-      stream.getTracks().forEach(t => pc.addTrack(t, stream));
+      // Create a peer connection for this specific user
+      const pc = createPeerForUser(data.acceptedBy);
 
       try {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        socketService.emit('call:offer', { callId: data.callId, sdp: offer.sdp });
-        console.log('WebRTC offer sent to callee');
+        socketService.emit('call:offer', { callId: data.callId, sdp: offer.sdp, targetUserId: data.acceptedBy });
+        console.log(`WebRTC offer sent to ${data.acceptedBy}`);
       } catch (err) {
         console.error('Offer creation failed:', err);
       }
 
       setCallState('connected');
       callStateRef.current = 'connected';
-      durationInterval.current = setInterval(() => {
-        setCallDuration(prev => prev + 1);
-      }, 1000);
+      if (!durationInterval.current) {
+        durationInterval.current = setInterval(() => {
+          setCallDuration(prev => prev + 1);
+        }, 1000);
+      }
     };
 
     const onCallRejected = () => { console.log('Call rejected by remote'); cleanup(); };
     const onCallEnded = (data: any) => { console.log('Call ended by remote', data); cleanup(); };
     const onCallTimeout = () => { console.log('Call timed out'); cleanup(); };
 
-    const onOffer = async (data: { callId: string; sdp: string }) => {
-      console.log('WebRTC offer received');
-      const pc = peerConnection.current;
-      if (!pc) return;
+    const onOffer = async (data: { callId: string; sdp: string; from: string }) => {
+      console.log(`WebRTC offer received from ${data.from}`);
+      // Create a peer connection for the caller
+      const pc = createPeerForUser(data.from);
       try {
         await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: data.sdp }));
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
-        socketService.emit('call:answer', { callId: data.callId, sdp: answer.sdp });
-        console.log('WebRTC answer sent to caller');
+        socketService.emit('call:answer', { callId: data.callId, sdp: answer.sdp, targetUserId: data.from });
+        console.log(`WebRTC answer sent to ${data.from}`);
       } catch (err) {
         console.error('Answer failed:', err);
       }
     };
 
-    const onAnswer = async (data: { sdp: string }) => {
-      console.log('WebRTC answer received');
-      const pc = peerConnection.current;
-      if (!pc) return;
+    const onAnswer = async (data: { sdp: string; from: string }) => {
+      console.log(`WebRTC answer received from ${data.from}`);
+      const entry = peers.current.get(data.from);
+      if (!entry) return;
       try {
-        await pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: data.sdp }));
+        await entry.pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: data.sdp }));
         console.log('WebRTC session description completed');
       } catch (err) {
         console.error('Set answer failed:', err);
       }
     };
 
-    const onIceCandidate = async (data: { candidate: RTCIceCandidateInit }) => {
-      const pc = peerConnection.current;
-      if (!pc) return;
+    const onIceCandidate = async (data: { candidate: RTCIceCandidateInit; from: string }) => {
+      const entry = peers.current.get(data.from);
+      if (!entry) return;
       try {
-        await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+        await entry.pc.addIceCandidate(new RTCIceCandidate(data.candidate));
       } catch (err) {
         console.error('ICE candidate failed:', err);
       }
@@ -327,11 +356,11 @@ export function CallProvider({ children }: { children: ReactNode }) {
       socketService.off('call:answer', onAnswer);
       socketService.off('call:ice-candidate', onIceCandidate);
     };
-  }, [cleanup, createPeer]); // Stabilized dependencies
+  }, [cleanup, createPeerForUser]);
 
   return (
     <CallContext.Provider value={{
-      callState, callInfo, localStream, remoteStream,
+      callState, callInfo, localStream, remoteStream, remoteStreams,
       isMuted, isVideoOff, callDuration,
       initiateCall, acceptCall, rejectCall, endCall,
       toggleMute, toggleVideo,

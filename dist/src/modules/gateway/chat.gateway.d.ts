@@ -35,4 +35,9 @@ export declare class ChatGateway implements OnGatewayConnection, OnGatewayDiscon
         messageId: string;
         textContent: string;
     }): Promise<void>;
+    handleReaction(socket: Socket, payload: {
+        chatId: string;
+        messageId: string;
+        emoji: string | null;
+    }): Promise<void>;
 }

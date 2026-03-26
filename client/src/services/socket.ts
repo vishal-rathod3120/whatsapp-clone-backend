@@ -71,6 +71,10 @@ class SocketService {
     this.emit('chat:edit', { chatId, messageId, textContent });
   }
 
+  reactToMessage(chatId: string, messageId: string, emoji: string | null) {
+    this.emit('chat:react', { chatId, messageId, emoji });
+  }
+
   async registerPushNotifications() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       console.warn('Push notifications not supported');

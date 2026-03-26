@@ -8,6 +8,8 @@ import { NewGroupModal } from '../../components/NewGroupModal';
 import { ProfilePanel } from '../../components/ProfilePanel';
 import { ContactInfoPanel } from '../../components/ContactInfoPanel';
 import { EmojiPicker } from '../../components/EmojiPicker';
+import { CallHistory } from '../../components/CallHistory';
+import { StatusPanel } from '../../components/StatusPanel';
 import { useCall } from '../../context/CallContext';
 import './Chat.css';
 
@@ -42,6 +44,8 @@ function Sidebar() {
   const [isSearching, setIsSearching] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [showCallHistory, setShowCallHistory] = useState(false);
+  const [showStatusPanel, setShowStatusPanel] = useState(false);
 
   useEffect(() => { loadChats(); }, [loadChats]);
 
@@ -99,6 +103,8 @@ function Sidebar() {
           <button className="icon-btn" onClick={toggleTheme} title="Toggle theme">
             {theme === 'dark' ? '☀️' : '🌙'}
           </button>
+          <button className="icon-btn" onClick={() => setShowStatusPanel(true)} title="Status">⭕</button>
+          <button className="icon-btn" onClick={() => setShowCallHistory(true)} title="Call History">📞</button>
           <button className="icon-btn" onClick={() => setShowGroupModal(true)} title="New Group">👥</button>
           <button className="icon-btn" onClick={logout} title="Logout">🚪</button>
         </div>
@@ -195,6 +201,14 @@ function Sidebar() {
       {showProfile && (
         <ProfilePanel onClose={() => setShowProfile(false)} />
       )}
+
+      {showCallHistory && (
+        <CallHistory onClose={() => setShowCallHistory(false)} />
+      )}
+
+      {showStatusPanel && (
+        <StatusPanel onClose={() => setShowStatusPanel(false)} />
+      )}
     </div>
   );
 }
@@ -247,7 +261,9 @@ function Conversation() {
     sendMediaMessage, 
     deleteMessage, 
     deleteGroup,
-    typingUsers 
+    deselectChat,
+    typingUsers,
+    userPresence
   } = useChat();
   const { user } = useAuth();
   const { initiateCall } = useCall();
@@ -368,6 +384,7 @@ function Conversation() {
     <>
     <div className="conversation-panel">
       <div className="conv-header">
+        <button className="back-btn" onClick={() => deselectChat()}>←</button>
         <div className="chat-avatar" style={{ width: 40, height: 40, fontSize: 16 }}>
           {activeChat.avatarUrl ? <img src={activeChat.avatarUrl} alt="" /> : getInitials(activeChat.title)}
         </div>
@@ -378,7 +395,16 @@ function Conversation() {
               ? 'typing...'
               : activeChat.type === 'GROUP'
                 ? `${activeChat.members.length} members`
-                : 'online'}
+                : (() => {
+                    const otherId = activeChat.members?.find((m: any) => m.userId !== user?.id)?.userId;
+                    const presence = otherId ? userPresence[otherId] : null;
+                    if (presence?.status === 'online') return 'online';
+                    if (presence?.lastSeen) {
+                      const d = new Date(presence.lastSeen);
+                      return `last seen at ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                    }
+                    return 'offline';
+                  })()}
           </div>
         </div>
         <div className="sidebar-header-actions" style={{ position: 'relative' }}>
@@ -427,31 +453,41 @@ function Conversation() {
           )}
         </div>
 
-        {/* Call buttons (direct chats only) */}
-        {activeChat.type === 'DIRECT' && (
-          <>
-            <button
-              className="icon-btn"
-              title="Voice call"
-              onClick={() => {
-                const other = activeChat.members?.find((m: any) => m.userId !== user?.id);
-                initiateCall(activeChat.id, 'AUDIO', other?.displayName || activeChat.title || 'Unknown', other?.avatarUrl || activeChat.avatarUrl);
-              }}
-            >
-              📞
-            </button>
-            <button
-              className="icon-btn"
-              title="Video call"
-              onClick={() => {
-                const other = activeChat.members?.find((m: any) => m.userId !== user?.id);
-                initiateCall(activeChat.id, 'VIDEO', other?.displayName || activeChat.title || 'Unknown', other?.avatarUrl || activeChat.avatarUrl);
-              }}
-            >
-              📹
-            </button>
-          </>
-        )}
+        {/* Call buttons (direct + group chats) */}
+        <>
+          <button
+            className="icon-btn"
+            title="Voice call"
+            onClick={() => {
+              const other = activeChat.type === 'DIRECT'
+                ? activeChat.members?.find((m: any) => m.userId !== user?.id)
+                : null;
+              initiateCall(
+                activeChat.id, 'AUDIO',
+                other?.displayName || activeChat.title || 'Unknown',
+                other?.avatarUrl || activeChat.avatarUrl
+              );
+            }}
+          >
+            📞
+          </button>
+          <button
+            className="icon-btn"
+            title="Video call"
+            onClick={() => {
+              const other = activeChat.type === 'DIRECT'
+                ? activeChat.members?.find((m: any) => m.userId !== user?.id)
+                : null;
+              initiateCall(
+                activeChat.id, 'VIDEO',
+                other?.displayName || activeChat.title || 'Unknown',
+                other?.avatarUrl || activeChat.avatarUrl
+              );
+            }}
+          >
+            📹
+          </button>
+        </>
 
         {/* Search button in header */}
         <button className="icon-btn" style={{ marginLeft: 'auto', marginRight: 8 }} onClick={() => setShowSearch(!showSearch)}>
@@ -578,6 +614,20 @@ function Conversation() {
                         </button>
                         {openMenuId === msg.id && (
                           <div className="message-menu">
+                            <div className="reaction-quick-bar">
+                              {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
+                                <button
+                                  key={emoji}
+                                  className="reaction-emoji-btn"
+                                  onClick={() => {
+                                    socketService.reactToMessage(activeChat!.id, msg.id, emoji);
+                                    setOpenMenuId(null);
+                                  }}
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
                             <button onClick={() => { setReplyingTo(msg); setOpenMenuId(null); setTimeout(() => inputRef.current?.focus(), 100); }}>
                               ↩️ Reply
                             </button>
@@ -607,6 +657,35 @@ function Conversation() {
                         )}
                       </span>
                     </>
+                  )}
+                  {/* Reaction display */}
+                  {msg.reactions && msg.reactions.length > 0 && (
+                    <div className="message-reactions-row">
+                      {Object.entries(
+                        msg.reactions.reduce((acc: Record<string, { count: number; users: string[] }>, r: any) => {
+                          if (!acc[r.emoji]) acc[r.emoji] = { count: 0, users: [] };
+                          acc[r.emoji].count++;
+                          acc[r.emoji].users.push(r.user?.displayName || 'Unknown');
+                          return acc;
+                        }, {})
+                      ).map(([emoji, data]: [string, any]) => (
+                        <button
+                          key={emoji}
+                          className={`message-reaction-pill ${data.users.some((n: string) => n === user?.displayName) ? 'mine' : ''}`}
+                          title={data.users.join(', ')}
+                          onClick={() => {
+                            const myReaction = msg.reactions?.find((r: any) => r.userId === user?.id);
+                            if (myReaction?.emoji === emoji) {
+                              socketService.reactToMessage(activeChat!.id, msg.id, null);
+                            } else {
+                              socketService.reactToMessage(activeChat!.id, msg.id, emoji);
+                            }
+                          }}
+                        >
+                          {emoji} {data.count > 1 ? data.count : ''}
+                        </button>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
@@ -736,7 +815,22 @@ function Conversation() {
 
 // ===== MAIN CHAT PAGE =====
 export function ChatPage() {
-  const { activeChat } = useChat();
+  const { activeChat, deselectChat } = useChat();
+
+  // Mobile back button support via History API
+  useEffect(() => {
+    if (!activeChat) return;
+
+    // Push state so browser back navigates to chat list
+    window.history.pushState({ chatOpen: true }, '');
+
+    const handlePopState = () => {
+      deselectChat();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [activeChat, deselectChat]);
 
   return (
     <div className={`chat-layout ${activeChat ? 'chat-open' : ''}`}>

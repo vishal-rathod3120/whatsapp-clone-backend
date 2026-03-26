@@ -24,6 +24,7 @@ const health_module_1 = require("./health/health.module");
 const prisma_module_1 = require("./prisma/prisma.module");
 const redis_module_1 = require("./redis/redis.module");
 const push_module_1 = require("./modules/push/push.module");
+const status_module_1 = require("./modules/status/status.module");
 const config_2 = require("./config");
 let AppModule = class AppModule {
 };
@@ -55,6 +56,7 @@ exports.AppModule = AppModule = __decorate([
             gateway_module_1.GatewayModule,
             notifications_module_1.NotificationsModule,
             push_module_1.PushModule,
+            status_module_1.StatusModule,
         ],
     })
 ], AppModule);

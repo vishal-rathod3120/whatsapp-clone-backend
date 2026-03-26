@@ -75,23 +75,27 @@ export class CallGateway {
         },
       });
 
-      // Get callee
-      const callee = call.chat.members.find((m) => m.userId !== userId);
-      
-      if (callee) {
-        // Notify callee
+      // Get caller info
+      const callerMember = call.chat.members.find((m) => m.userId === userId);
+
+      // Notify all other members (supports both direct and group chats)
+      const callees = call.chat.members.filter((m) => m.userId !== userId);
+
+      for (const callee of callees) {
         this.server.to(`user:${callee.userId}`).emit('call:incoming', {
           callId: call.id,
           chatId: payload.chatId,
           caller: {
             id: userId,
-            displayName: call.chat.members.find((m) => m.userId === userId)?.user.displayName,
-            avatarUrl: call.chat.members.find((m) => m.userId === userId)?.user.avatarUrl,
+            displayName: callerMember?.user.displayName,
+            avatarUrl: callerMember?.user.avatarUrl,
           },
           type: payload.type,
         });
+      }
 
-        // Set call timeout
+      // Set call timeout
+      if (callees.length > 0) {
         setTimeout(async () => {
           const currentCall = await this.prisma.call.findUnique({
             where: { id: call.id },

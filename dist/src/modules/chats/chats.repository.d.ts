@@ -5,13 +5,13 @@ export declare class ChatsRepository {
     findDirectChatBetweenUsers(userId1: string, userId2: string): Promise<({
         members: {
             id: string;
-            role: import(".prisma/client").$Enums.ChatMemberRole;
-            joinedAt: Date;
-            leftAt: Date | null;
-            isMuted: boolean;
-            lastReadMessageId: string | null;
             userId: string;
             chatId: string;
+            joinedAt: Date;
+            leftAt: Date | null;
+            role: import(".prisma/client").$Enums.ChatMemberRole;
+            isMuted: boolean;
+            lastReadMessageId: string | null;
         }[];
     } & {
         id: string;
@@ -33,13 +33,13 @@ export declare class ChatsRepository {
             };
         } & {
             id: string;
-            role: import(".prisma/client").$Enums.ChatMemberRole;
-            joinedAt: Date;
-            leftAt: Date | null;
-            isMuted: boolean;
-            lastReadMessageId: string | null;
             userId: string;
             chatId: string;
+            joinedAt: Date;
+            leftAt: Date | null;
+            role: import(".prisma/client").$Enums.ChatMemberRole;
+            isMuted: boolean;
+            lastReadMessageId: string | null;
         })[];
     } & {
         id: string;
@@ -62,20 +62,20 @@ export declare class ChatsRepository {
             };
         } & {
             id: string;
-            role: import(".prisma/client").$Enums.ChatMemberRole;
-            joinedAt: Date;
-            leftAt: Date | null;
-            isMuted: boolean;
-            lastReadMessageId: string | null;
             userId: string;
             chatId: string;
+            joinedAt: Date;
+            leftAt: Date | null;
+            role: import(".prisma/client").$Enums.ChatMemberRole;
+            isMuted: boolean;
+            lastReadMessageId: string | null;
         })[];
         messages: {
             id: string;
             createdAt: Date;
             type: import(".prisma/client").$Enums.MessageType;
-            textContent: string | null;
             status: import(".prisma/client").$Enums.MessageStatus;
+            textContent: string | null;
             senderId: string;
         }[];
     } & {
@@ -100,13 +100,13 @@ export declare class ChatsRepository {
             };
         } & {
             id: string;
-            role: import(".prisma/client").$Enums.ChatMemberRole;
-            joinedAt: Date;
-            leftAt: Date | null;
-            isMuted: boolean;
-            lastReadMessageId: string | null;
             userId: string;
             chatId: string;
+            joinedAt: Date;
+            leftAt: Date | null;
+            role: import(".prisma/client").$Enums.ChatMemberRole;
+            isMuted: boolean;
+            lastReadMessageId: string | null;
         })[];
     } & {
         id: string;
@@ -121,13 +121,13 @@ export declare class ChatsRepository {
     }) | null>;
     findChatMember(chatId: string, userId: string): Promise<{
         id: string;
-        role: import(".prisma/client").$Enums.ChatMemberRole;
-        joinedAt: Date;
-        leftAt: Date | null;
-        isMuted: boolean;
-        lastReadMessageId: string | null;
         userId: string;
         chatId: string;
+        joinedAt: Date;
+        leftAt: Date | null;
+        role: import(".prisma/client").$Enums.ChatMemberRole;
+        isMuted: boolean;
+        lastReadMessageId: string | null;
     } | null>;
     updateLastMessage(chatId: string, messageId: string, lastMessageAt: Date): Promise<{
         id: string;
@@ -142,12 +142,12 @@ export declare class ChatsRepository {
     }>;
     updateLastReadMessage(chatId: string, userId: string, messageId: string): Promise<{
         id: string;
-        role: import(".prisma/client").$Enums.ChatMemberRole;
-        joinedAt: Date;
-        leftAt: Date | null;
-        isMuted: boolean;
-        lastReadMessageId: string | null;
         userId: string;
         chatId: string;
+        joinedAt: Date;
+        leftAt: Date | null;
+        role: import(".prisma/client").$Enums.ChatMemberRole;
+        isMuted: boolean;
+        lastReadMessageId: string | null;
     }>;
 }

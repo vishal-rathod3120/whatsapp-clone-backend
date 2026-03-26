@@ -78,6 +78,8 @@ model User {
   callParticipants CallParticipant[]
   messageReceipts  MessageReceipt[]
   deletedMessages  DeletedMessage[]
+  statuses         Status[]
+  messageReactions MessageReaction[]
 
   @@map("users")
 }
@@ -161,12 +163,28 @@ model Message {
   replies          Message[]        @relation("MessageReplies")
   receipts         MessageReceipt[]
   deletedByUsers   DeletedMessage[]
+  reactions        MessageReaction[]
 
   @@index([chatId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([senderId])
   @@index([attachmentId])
   @@unique([senderId, clientTempId])
   @@map("messages")
+}
+
+model MessageReaction {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@map("message_reactions")
 }
 
 model MessageReceipt {
@@ -268,3 +286,36 @@ model CallParticipant {
   @@index([userId])
   @@map("call_participants")
 }
+
+model Status {
+  id          String       @id @default(uuid())
+  userId      String
+  type        String       @default("TEXT") // TEXT or IMAGE
+  textContent String?
+  imageUrl    String?
+  bgColor     String?      // Background color for text statuses
+  caption     String?      // Caption for image statuses
+  expiresAt   DateTime
+  createdAt   DateTime     @default(now())
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  views       StatusView[]
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("statuses")
+}
+
+model StatusView {
+  id        String   @id @default(uuid())
+  statusId  String
+  viewerId  String
+  viewedAt  DateTime @default(now())
+
+  status    Status   @relation(fields: [statusId], references: [id], onDelete: Cascade)
+
+  @@unique([statusId, viewerId])
+  @@index([viewerId])
+  @@map("status_views")
+}
+

@@ -13,9 +13,43 @@ function formatDuration(seconds: number) {
   return `${m}:${s}`;
 }
 
+// Video tile component for each remote participant
+function RemoteVideoTile({ stream, userId }: { stream: MediaStream; userId: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play().catch(e => console.warn(`Remote video play failed (${userId}):`, e));
+    }
+    if (audioRef.current) {
+      audioRef.current.srcObject = stream;
+      audioRef.current.play().catch(e => console.warn(`Remote audio play failed (${userId}):`, e));
+    }
+  }, [stream, userId]);
+
+  const hasVideo = stream.getVideoTracks().length > 0;
+
+  return (
+    <div className="call-participant-tile">
+      {hasVideo ? (
+        <video ref={videoRef} autoPlay playsInline className="call-participant-video" />
+      ) : (
+        <>
+          <div className="call-participant-avatar">
+            <span>{getInitials(userId)}</span>
+          </div>
+          <audio ref={audioRef} autoPlay playsInline />
+        </>
+      )}
+    </div>
+  );
+}
+
 export function CallOverlay() {
   const {
-    callState, callInfo, localStream, remoteStream,
+    callState, callInfo, localStream, remoteStream, remoteStreams,
     isMuted, isVideoOff, callDuration,
     acceptCall, rejectCall, endCall, toggleMute, toggleVideo,
   } = useCall();
@@ -31,8 +65,9 @@ export function CallOverlay() {
     }
   }, [localStream, callState]);
 
+  // For 1:1 backward compat
   useEffect(() => {
-    if (callState === 'connected' && remoteStream) {
+    if (callState === 'connected' && remoteStream && remoteStreams.size <= 1) {
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = remoteStream;
         remoteVideoRef.current.play().catch(e => console.warn('Remote video play failed:', e));
@@ -42,27 +77,39 @@ export function CallOverlay() {
         remoteAudioRef.current.play().catch(e => console.warn('Remote audio play failed:', e));
       }
     }
-  }, [remoteStream, callState]);
+  }, [remoteStream, callState, remoteStreams.size]);
 
   if (callState === 'idle' || !callInfo) return null;
 
   const isVideo = callInfo.type === 'VIDEO';
   const name = callInfo.remoteName || callInfo.caller?.displayName || 'Unknown';
   const avatar = callInfo.remoteAvatar || callInfo.caller?.avatarUrl;
+  const isGroupCall = remoteStreams.size > 1;
 
   return (
     <div className={`call-overlay ${isVideo && callState === 'connected' ? 'video-mode' : ''}`}>
-      {/* Remote Video (full screen background) */}
-      {isVideo && callState === 'connected' && remoteStream && (
-        <video
-          ref={remoteVideoRef}
-          autoPlay
-          playsInline
-          className="call-remote-video"
-        />
+      {/* Multi-participant video grid */}
+      {isVideo && callState === 'connected' && isGroupCall ? (
+        <div className={`call-grid call-grid-${Math.min(remoteStreams.size, 4)}`}>
+          {Array.from(remoteStreams.entries()).map(([userId, stream]) => (
+            <RemoteVideoTile key={userId} stream={stream} userId={userId} />
+          ))}
+        </div>
+      ) : (
+        <>
+          {/* 1:1 Remote Video (full screen background) */}
+          {isVideo && callState === 'connected' && remoteStream && (
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              className="call-remote-video"
+            />
+          )}
+        </>
       )}
 
-      {/* Remote Audio */}
+      {/* Remote Audio for voice calls */}
       {!isVideo && callState === 'connected' && remoteStream && (
         <audio
           ref={remoteAudioRef}
@@ -114,7 +161,6 @@ export function CallOverlay() {
 
       {/* Controls */}
       <div className="call-controls">
-        {/* Incoming call: Accept / Reject */}
         {callState === 'incoming' && (
           <>
             <button className="call-control-btn reject" onClick={rejectCall} title="Decline">
@@ -126,14 +172,12 @@ export function CallOverlay() {
           </>
         )}
 
-        {/* Outgoing: Cancel */}
         {callState === 'outgoing' && (
           <button className="call-control-btn reject" onClick={endCall} title="Cancel">
             <span>📞</span>
           </button>
         )}
 
-        {/* Connected: Mute, Video, End */}
         {callState === 'connected' && (
           <>
             <button

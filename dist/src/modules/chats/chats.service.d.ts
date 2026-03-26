@@ -9,13 +9,13 @@ export declare class ChatsService {
     createDirectChat(userId: string, dto: CreateDirectChatDto): Promise<{
         members: {
             id: string;
-            role: import(".prisma/client").$Enums.ChatMemberRole;
-            joinedAt: Date;
-            leftAt: Date | null;
-            isMuted: boolean;
-            lastReadMessageId: string | null;
             userId: string;
             chatId: string;
+            joinedAt: Date;
+            leftAt: Date | null;
+            role: import(".prisma/client").$Enums.ChatMemberRole;
+            isMuted: boolean;
+            lastReadMessageId: string | null;
         }[];
     } & {
         id: string;
@@ -41,13 +41,13 @@ export declare class ChatsService {
             };
         } & {
             id: string;
-            role: import(".prisma/client").$Enums.ChatMemberRole;
-            joinedAt: Date;
-            leftAt: Date | null;
-            isMuted: boolean;
-            lastReadMessageId: string | null;
             userId: string;
             chatId: string;
+            joinedAt: Date;
+            leftAt: Date | null;
+            role: import(".prisma/client").$Enums.ChatMemberRole;
+            isMuted: boolean;
+            lastReadMessageId: string | null;
         })[];
     } & {
         id: string;
@@ -91,8 +91,8 @@ export declare class ChatsService {
                 id: string;
                 createdAt: Date;
                 type: import(".prisma/client").$Enums.MessageType;
-                textContent: string | null;
                 status: import(".prisma/client").$Enums.MessageStatus;
+                textContent: string | null;
                 senderId: string;
             };
             unreadCount: number;

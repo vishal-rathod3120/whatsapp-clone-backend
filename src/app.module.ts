@@ -15,6 +15,7 @@ import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { PushModule } from './modules/push/push.module';
+import { StatusModule } from './modules/status/status.module';
 import { appConfig, databaseConfig, jwtConfig, redisConfig, storageConfig } from './config';
 
 @Module({
@@ -43,6 +44,7 @@ import { appConfig, databaseConfig, jwtConfig, redisConfig, storageConfig } from
     GatewayModule,
     NotificationsModule,
     PushModule,
+    StatusModule,
   ],
 })
 export class AppModule {}
