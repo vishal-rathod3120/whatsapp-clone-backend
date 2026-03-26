@@ -218,4 +218,71 @@ export declare class MessagesService {
         editedAt: Date | null;
         expiresAt: Date | null;
     }>;
+    starMessage(chatId: string, messageId: string, userId: string): Promise<{
+        success: boolean;
+    }>;
+    unstarMessage(chatId: string, messageId: string, userId: string): Promise<{
+        success: boolean;
+    }>;
+    getStarredMessages(userId: string): Promise<{
+        chatId: string;
+        chatType: import(".prisma/client").$Enums.ChatType;
+        chatTitle: string | null;
+        chatAvatar: string | null;
+        starredAt: Date;
+        chat: {
+            id: string;
+            type: import(".prisma/client").$Enums.ChatType;
+            title: string | null;
+            avatarUrl: string | null;
+            members: ({
+                user: {
+                    avatarUrl: string | null;
+                    displayName: string;
+                };
+            } & {
+                id: string;
+                userId: string;
+                role: import(".prisma/client").$Enums.ChatMemberRole;
+                joinedAt: Date;
+                leftAt: Date | null;
+                isMuted: boolean;
+                mutedUntil: Date | null;
+                isPinned: boolean;
+                wallpaperUrl: string | null;
+                lastReadMessageId: string | null;
+                chatId: string;
+            })[];
+        };
+        sender: {
+            id: string;
+            avatarUrl: string | null;
+            displayName: string;
+        };
+        attachment: {
+            id: string;
+            createdAt: Date;
+            uploaderId: string;
+            storageKey: string;
+            originalName: string | null;
+            mimeType: string;
+            sizeBytes: bigint;
+            width: number | null;
+            height: number | null;
+            durationSeconds: number | null;
+            thumbnailKey: string | null;
+        } | null;
+        id: string;
+        type: import(".prisma/client").$Enums.MessageType;
+        createdAt: Date;
+        senderId: string;
+        clientTempId: string | null;
+        textContent: string | null;
+        replyToMessageId: string | null;
+        attachmentId: string | null;
+        status: import(".prisma/client").$Enums.MessageStatus;
+        isDeleted: boolean;
+        editedAt: Date | null;
+        expiresAt: Date | null;
+    }[]>;
 }

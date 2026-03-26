@@ -400,6 +400,92 @@ let MessagesService = class MessagesService {
         });
         return updated;
     }
+    async starMessage(chatId, messageId, userId) {
+        const message = await this.prisma.message.findUnique({
+            where: { id: messageId },
+        });
+        if (!message || message.chatId !== chatId) {
+            throw new common_1.NotFoundException('Message not found');
+        }
+        try {
+            await this.prisma.starredMessage.create({
+                data: {
+                    userId,
+                    messageId,
+                },
+            });
+        }
+        catch (err) {
+        }
+        return { success: true };
+    }
+    async unstarMessage(chatId, messageId, userId) {
+        try {
+            await this.prisma.starredMessage.delete({
+                where: {
+                    userId_messageId: {
+                        userId,
+                        messageId,
+                    },
+                },
+            });
+        }
+        catch (err) {
+        }
+        return { success: true };
+    }
+    async getStarredMessages(userId) {
+        const starred = await this.prisma.starredMessage.findMany({
+            where: { userId },
+            orderBy: { createdAt: 'desc' },
+            include: {
+                message: {
+                    include: {
+                        chat: {
+                            select: {
+                                id: true,
+                                type: true,
+                                title: true,
+                                avatarUrl: true,
+                                members: {
+                                    include: {
+                                        user: { select: { displayName: true, avatarUrl: true } }
+                                    }
+                                }
+                            }
+                        },
+                        sender: {
+                            select: {
+                                id: true,
+                                displayName: true,
+                                avatarUrl: true,
+                            },
+                        },
+                        attachment: true,
+                    },
+                },
+            },
+        });
+        return starred.map(s => {
+            let chat = s.message.chat;
+            if (chat.type === 'DIRECT') {
+                const otherMember = chat.members.find(m => m.userId !== userId)?.user;
+                chat = {
+                    ...chat,
+                    title: otherMember?.displayName || 'Unknown',
+                    avatarUrl: otherMember?.avatarUrl || null
+                };
+            }
+            return {
+                ...s.message,
+                chatId: chat.id,
+                chatType: chat.type,
+                chatTitle: chat.title,
+                chatAvatar: chat.avatarUrl,
+                starredAt: s.createdAt
+            };
+        });
+    }
 };
 exports.MessagesService = MessagesService;
 exports.MessagesService = MessagesService = __decorate([

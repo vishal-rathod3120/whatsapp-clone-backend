@@ -53,6 +53,15 @@ let MessagesController = class MessagesController {
     async editMessage(chatId, messageId, dto, user) {
         return this.messagesService.editMessage(chatId, messageId, user.sub, dto.textContent);
     }
+    async starMessage(chatId, messageId, user) {
+        return this.messagesService.starMessage(chatId, messageId, user.sub);
+    }
+    async unstarMessage(chatId, messageId, user) {
+        return this.messagesService.unstarMessage(chatId, messageId, user.sub);
+    }
+    async getStarredMessages(user) {
+        return this.messagesService.getStarredMessages(user.sub);
+    }
 };
 exports.MessagesController = MessagesController;
 __decorate([
@@ -106,6 +115,34 @@ __decorate([
     __metadata("design:paramtypes", [String, String, message_dto_1.EditMessageDto, Object]),
     __metadata("design:returntype", Promise)
 ], MessagesController.prototype, "editMessage", null);
+__decorate([
+    (0, common_1.Post)(':messageId/star'),
+    (0, swagger_1.ApiOperation)({ summary: 'Star a message' }),
+    __param(0, (0, common_1.Param)('chatId')),
+    __param(1, (0, common_1.Param)('messageId')),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", Promise)
+], MessagesController.prototype, "starMessage", null);
+__decorate([
+    (0, common_1.Delete)(':messageId/star'),
+    (0, swagger_1.ApiOperation)({ summary: 'Unstar a message' }),
+    __param(0, (0, common_1.Param)('chatId')),
+    __param(1, (0, common_1.Param)('messageId')),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", Promise)
+], MessagesController.prototype, "unstarMessage", null);
+__decorate([
+    (0, common_1.Get)('starred'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get all starred messages for the current user' }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], MessagesController.prototype, "getStarredMessages", null);
 exports.MessagesController = MessagesController = __decorate([
     (0, swagger_1.ApiTags)('Messages'),
     (0, swagger_1.ApiBearerAuth)(),

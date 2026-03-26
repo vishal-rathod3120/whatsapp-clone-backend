@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ChatGateway = void 0;
 const websockets_1 = require("@nestjs/websockets");
+const prisma_service_1 = require("../../prisma/prisma.service");
 const socket_io_1 = require("socket.io");
 const socket_session_service_1 = require("./socket-session.service");
 const chats_service_1 = require("../chats/chats.service");
@@ -24,7 +25,8 @@ const auth_token_service_1 = require("../auth/auth-token.service");
 const message_dto_1 = require("../messages/dto/message.dto");
 const common_1 = require("@nestjs/common");
 let ChatGateway = class ChatGateway {
-    constructor(socketSessionService, chatsService, messagesService, presenceRepository, notificationsService, authTokenService) {
+    constructor(prisma, socketSessionService, chatsService, messagesService, presenceRepository, notificationsService, authTokenService) {
+        this.prisma = prisma;
         this.socketSessionService = socketSessionService;
         this.chatsService = chatsService;
         this.messagesService = messagesService;
@@ -347,8 +349,9 @@ exports.ChatGateway = ChatGateway = __decorate([
         cors: { origin: '*' },
         namespace: '/',
     }),
-    __param(2, (0, common_1.Inject)((0, common_1.forwardRef)(() => messages_service_1.MessagesService))),
-    __metadata("design:paramtypes", [socket_session_service_1.SocketSessionService,
+    __param(3, (0, common_1.Inject)((0, common_1.forwardRef)(() => messages_service_1.MessagesService))),
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        socket_session_service_1.SocketSessionService,
         chats_service_1.ChatsService,
         messages_service_1.MessagesService,
         presence_repository_1.PresenceRepository,

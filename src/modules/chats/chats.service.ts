@@ -298,7 +298,7 @@ export class ChatsService {
     );
 
     // Sort by pinned first, then by last message time
-    const sortedItems = itemsWithDetails.sort((a, b) => {
+    const sortedItems = chatListWithUnread.sort((a, b) => {
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
       const timeA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;

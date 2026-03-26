@@ -56,6 +56,16 @@ let ChatsController = class ChatsController {
     async updateDisappearingTimer(chatId, body, user) {
         return this.chatsService.updateDisappearingTimer(chatId, user.sub, body.timer);
     }
+    async togglePin(chatId, body, user) {
+        return this.chatsService.togglePin(chatId, user.sub, body.isPinned);
+    }
+    async updateMute(chatId, body, user) {
+        const mutedUntil = body.mutedUntil ? new Date(body.mutedUntil) : null;
+        return this.chatsService.updateMute(chatId, user.sub, body.isMuted, mutedUntil);
+    }
+    async updateWallpaper(chatId, body, user) {
+        return this.chatsService.updateWallpaper(chatId, user.sub, body.wallpaperUrl);
+    }
 };
 exports.ChatsController = ChatsController;
 __decorate([
@@ -164,6 +174,36 @@ __decorate([
     __metadata("design:paramtypes", [String, Object, Object]),
     __metadata("design:returntype", Promise)
 ], ChatsController.prototype, "updateDisappearingTimer", null);
+__decorate([
+    (0, common_1.Patch)(':chatId/pin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Pin or unpin a chat' }),
+    __param(0, (0, common_1.Param)('chatId')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], ChatsController.prototype, "togglePin", null);
+__decorate([
+    (0, common_1.Patch)(':chatId/mute'),
+    (0, swagger_1.ApiOperation)({ summary: 'Mute or unmute a chat' }),
+    __param(0, (0, common_1.Param)('chatId')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], ChatsController.prototype, "updateMute", null);
+__decorate([
+    (0, common_1.Patch)(':chatId/wallpaper'),
+    (0, swagger_1.ApiOperation)({ summary: 'Update chat wallpaper' }),
+    __param(0, (0, common_1.Param)('chatId')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], ChatsController.prototype, "updateWallpaper", null);
 exports.ChatsController = ChatsController = __decorate([
     (0, swagger_1.ApiTags)('Chats'),
     (0, swagger_1.ApiBearerAuth)(),

@@ -189,7 +189,10 @@ let ChatsService = class ChatsService {
                 skip: 1,
                 cursor: { id: cursor },
             }),
-            orderBy: { lastMessageAt: 'desc' },
+            orderBy: [
+                { members: { _count: 'desc' } },
+                { lastMessageAt: 'desc' }
+            ],
             include: {
                 members: {
                     where: { leftAt: null },
@@ -238,6 +241,7 @@ let ChatsService = class ChatsService {
             const otherMember = chat.type === enums_1.ChatType.DIRECT
                 ? chat.members.find((m) => m.userId !== userId)?.user
                 : null;
+            const userMember = chat.members.find(m => m.userId === userId);
             return {
                 id: chat.id,
                 type: chat.type,
@@ -250,6 +254,10 @@ let ChatsService = class ChatsService {
                 lastMessage: chat.messages[0] || null,
                 unreadCount,
                 lastMessageAt: chat.lastMessageAt,
+                isPinned: userMember?.isPinned || false,
+                isMuted: userMember?.isMuted || false,
+                mutedUntil: userMember?.mutedUntil || null,
+                wallpaperUrl: userMember?.wallpaperUrl || null,
                 members: chat.members.map((m) => ({
                     userId: m.userId,
                     displayName: m.user.displayName,
@@ -260,8 +268,17 @@ let ChatsService = class ChatsService {
                 })),
             };
         }));
+        const sortedItems = chatListWithUnread.sort((a, b) => {
+            if (a.isPinned && !b.isPinned)
+                return -1;
+            if (!a.isPinned && b.isPinned)
+                return 1;
+            const timeA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+            const timeB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+            return timeB - timeA;
+        });
         return {
-            items: chatListWithUnread,
+            items: sortedItems,
             nextCursor,
         };
     }
@@ -466,6 +483,27 @@ let ChatsService = class ChatsService {
         catch (e) {
         }
         return updated;
+    }
+    async togglePin(chatId, userId, isPinned) {
+        await this.prisma.chatMember.update({
+            where: { chatId_userId: { chatId, userId } },
+            data: { isPinned }
+        });
+        return { success: true, isPinned };
+    }
+    async updateMute(chatId, userId, isMuted, mutedUntil) {
+        await this.prisma.chatMember.update({
+            where: { chatId_userId: { chatId, userId } },
+            data: { isMuted, mutedUntil }
+        });
+        return { success: true, isMuted, mutedUntil };
+    }
+    async updateWallpaper(chatId, userId, wallpaperUrl) {
+        await this.prisma.chatMember.update({
+            where: { chatId_userId: { chatId, userId } },
+            data: { wallpaperUrl }
+        });
+        return { success: true, wallpaperUrl };
     }
 };
 exports.ChatsService = ChatsService;

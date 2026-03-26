@@ -25,6 +25,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   server: Server;
 
   constructor(
+    private prisma: PrismaService,
     private socketSessionService: SocketSessionService,
     private chatsService: ChatsService,
     @Inject(forwardRef(() => MessagesService))

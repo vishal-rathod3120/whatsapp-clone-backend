@@ -21,6 +21,9 @@ export declare class CallsController {
                     joinedAt: Date;
                     leftAt: Date | null;
                     isMuted: boolean;
+                    mutedUntil: Date | null;
+                    isPinned: boolean;
+                    wallpaperUrl: string | null;
                     lastReadMessageId: string | null;
                     chatId: string;
                 })[];
@@ -83,6 +86,9 @@ export declare class CallsController {
                 joinedAt: Date;
                 leftAt: Date | null;
                 isMuted: boolean;
+                mutedUntil: Date | null;
+                isPinned: boolean;
+                wallpaperUrl: string | null;
                 lastReadMessageId: string | null;
                 chatId: string;
             })[];

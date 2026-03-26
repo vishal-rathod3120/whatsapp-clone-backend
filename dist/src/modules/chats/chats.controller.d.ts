@@ -12,6 +12,9 @@ export declare class ChatsController {
             joinedAt: Date;
             leftAt: Date | null;
             isMuted: boolean;
+            mutedUntil: Date | null;
+            isPinned: boolean;
+            wallpaperUrl: string | null;
             lastReadMessageId: string | null;
             chatId: string;
         }[];
@@ -43,6 +46,10 @@ export declare class ChatsController {
             };
             unreadCount: number;
             lastMessageAt: Date | null;
+            isPinned: boolean;
+            isMuted: boolean;
+            mutedUntil: Date | null;
+            wallpaperUrl: string | null;
             members: {
                 userId: string;
                 displayName: string;
@@ -85,6 +92,9 @@ export declare class ChatsController {
             joinedAt: Date;
             leftAt: Date | null;
             isMuted: boolean;
+            mutedUntil: Date | null;
+            isPinned: boolean;
+            wallpaperUrl: string | null;
             lastReadMessageId: string | null;
             chatId: string;
         })[];
@@ -138,5 +148,25 @@ export declare class ChatsController {
         disappearingTimer: number | null;
         createdAt: Date;
         updatedAt: Date;
+    }>;
+    togglePin(chatId: string, body: {
+        isPinned: boolean;
+    }, user: JwtPayload): Promise<{
+        success: boolean;
+        isPinned: boolean;
+    }>;
+    updateMute(chatId: string, body: {
+        isMuted: boolean;
+        mutedUntil?: string;
+    }, user: JwtPayload): Promise<{
+        success: boolean;
+        isMuted: boolean;
+        mutedUntil: Date | null | undefined;
+    }>;
+    updateWallpaper(chatId: string, body: {
+        wallpaperUrl: string | null;
+    }, user: JwtPayload): Promise<{
+        success: boolean;
+        wallpaperUrl: string | null;
     }>;
 }

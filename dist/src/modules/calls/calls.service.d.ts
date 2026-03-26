@@ -18,6 +18,9 @@ export declare class CallsService {
                     joinedAt: Date;
                     leftAt: Date | null;
                     isMuted: boolean;
+                    mutedUntil: Date | null;
+                    isPinned: boolean;
+                    wallpaperUrl: string | null;
                     lastReadMessageId: string | null;
                     chatId: string;
                 })[];
@@ -80,6 +83,9 @@ export declare class CallsService {
                 joinedAt: Date;
                 leftAt: Date | null;
                 isMuted: boolean;
+                mutedUntil: Date | null;
+                isPinned: boolean;
+                wallpaperUrl: string | null;
                 lastReadMessageId: string | null;
                 chatId: string;
             })[];

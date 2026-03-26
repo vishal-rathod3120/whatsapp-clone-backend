@@ -17,7 +17,7 @@ export class MessagesController {
   @Get('link-preview')
   @ApiOperation({ summary: 'Get metadata for a URL link preview' })
   @ApiQuery({ name: 'url', required: true })
-  async getLinkPreview(@Query('url') url: string) {
+  async getLinkPreview(@Query('url') url: string): Promise<any> {
     try {
       if (!url) return null;
       const preview = await getLinkPreview(url, {

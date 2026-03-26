@@ -1,4 +1,5 @@
 import { OnGatewayConnection, OnGatewayDisconnect } from '@nestjs/websockets';
+import { PrismaService } from '../../prisma/prisma.service';
 import { Server, Socket } from 'socket.io';
 import { SocketSessionService } from './socket-session.service';
 import { ChatsService } from '../chats/chats.service';
@@ -8,6 +9,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { AuthTokenService } from '../auth/auth-token.service';
 import { SendMessageDto, DeliveredDto, SeenDto } from '../messages/dto/message.dto';
 export declare class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
+    private prisma;
     private socketSessionService;
     private chatsService;
     private messagesService;
@@ -15,7 +17,7 @@ export declare class ChatGateway implements OnGatewayConnection, OnGatewayDiscon
     private notificationsService;
     private authTokenService;
     server: Server;
-    constructor(socketSessionService: SocketSessionService, chatsService: ChatsService, messagesService: MessagesService, presenceRepository: PresenceRepository, notificationsService: NotificationsService, authTokenService: AuthTokenService);
+    constructor(prisma: PrismaService, socketSessionService: SocketSessionService, chatsService: ChatsService, messagesService: MessagesService, presenceRepository: PresenceRepository, notificationsService: NotificationsService, authTokenService: AuthTokenService);
     handleConnection(socket: Socket): Promise<void>;
     private replayMissedMessages;
     handleDisconnect(socket: Socket): Promise<void>;

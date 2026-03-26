@@ -10,6 +10,9 @@ export declare class ChatsRepository {
             joinedAt: Date;
             leftAt: Date | null;
             isMuted: boolean;
+            mutedUntil: Date | null;
+            isPinned: boolean;
+            wallpaperUrl: string | null;
             lastReadMessageId: string | null;
             chatId: string;
         }[];
@@ -39,6 +42,9 @@ export declare class ChatsRepository {
             joinedAt: Date;
             leftAt: Date | null;
             isMuted: boolean;
+            mutedUntil: Date | null;
+            isPinned: boolean;
+            wallpaperUrl: string | null;
             lastReadMessageId: string | null;
             chatId: string;
         })[];
@@ -69,6 +75,9 @@ export declare class ChatsRepository {
             joinedAt: Date;
             leftAt: Date | null;
             isMuted: boolean;
+            mutedUntil: Date | null;
+            isPinned: boolean;
+            wallpaperUrl: string | null;
             lastReadMessageId: string | null;
             chatId: string;
         })[];
@@ -108,6 +117,9 @@ export declare class ChatsRepository {
             joinedAt: Date;
             leftAt: Date | null;
             isMuted: boolean;
+            mutedUntil: Date | null;
+            isPinned: boolean;
+            wallpaperUrl: string | null;
             lastReadMessageId: string | null;
             chatId: string;
         })[];
@@ -130,6 +142,9 @@ export declare class ChatsRepository {
         joinedAt: Date;
         leftAt: Date | null;
         isMuted: boolean;
+        mutedUntil: Date | null;
+        isPinned: boolean;
+        wallpaperUrl: string | null;
         lastReadMessageId: string | null;
         chatId: string;
     } | null>;
@@ -152,6 +167,9 @@ export declare class ChatsRepository {
         joinedAt: Date;
         leftAt: Date | null;
         isMuted: boolean;
+        mutedUntil: Date | null;
+        isPinned: boolean;
+        wallpaperUrl: string | null;
         lastReadMessageId: string | null;
         chatId: string;
     }>;

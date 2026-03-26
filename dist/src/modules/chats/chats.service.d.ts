@@ -14,6 +14,9 @@ export declare class ChatsService {
             joinedAt: Date;
             leftAt: Date | null;
             isMuted: boolean;
+            mutedUntil: Date | null;
+            isPinned: boolean;
+            wallpaperUrl: string | null;
             lastReadMessageId: string | null;
             chatId: string;
         }[];
@@ -47,6 +50,9 @@ export declare class ChatsService {
             joinedAt: Date;
             leftAt: Date | null;
             isMuted: boolean;
+            mutedUntil: Date | null;
+            isPinned: boolean;
+            wallpaperUrl: string | null;
             lastReadMessageId: string | null;
             chatId: string;
         })[];
@@ -100,6 +106,10 @@ export declare class ChatsService {
             };
             unreadCount: number;
             lastMessageAt: Date | null;
+            isPinned: boolean;
+            isMuted: boolean;
+            mutedUntil: Date | null;
+            wallpaperUrl: string | null;
             members: {
                 userId: string;
                 displayName: string;
@@ -146,5 +156,18 @@ export declare class ChatsService {
         disappearingTimer: number | null;
         createdAt: Date;
         updatedAt: Date;
+    }>;
+    togglePin(chatId: string, userId: string, isPinned: boolean): Promise<{
+        success: boolean;
+        isPinned: boolean;
+    }>;
+    updateMute(chatId: string, userId: string, isMuted: boolean, mutedUntil?: Date | null): Promise<{
+        success: boolean;
+        isMuted: boolean;
+        mutedUntil: Date | null | undefined;
+    }>;
+    updateWallpaper(chatId: string, userId: string, wallpaperUrl: string | null): Promise<{
+        success: boolean;
+        wallpaperUrl: string | null;
     }>;
 }
