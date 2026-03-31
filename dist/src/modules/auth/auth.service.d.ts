@@ -1,10 +1,14 @@
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthTokenService } from './auth-token.service';
 import { RegisterDto, LoginDto } from './dto/auth.dto';
+import { RedisService } from '../../redis/redis.service';
+import { SecurityLogService } from './security-log.service';
 export declare class AuthService {
     private prisma;
     private authTokenService;
-    constructor(prisma: PrismaService, authTokenService: AuthTokenService);
+    private redis;
+    private securityLog;
+    constructor(prisma: PrismaService, authTokenService: AuthTokenService, redis: RedisService, securityLog: SecurityLogService);
     register(dto: RegisterDto): Promise<{
         accessToken: string;
         refreshToken: string;

@@ -5,6 +5,8 @@ import { MediaService } from './media.service';
 import { S3Storage } from './storage/s3.storage';
 import { LocalStorage } from './storage/local.storage';
 import { StorageInterface } from './storage/storage.interface';
+import { OpenAIService } from './openai.service';
+import { QueueModule } from '../../common/queue/queue.module';
 
 const storageProvider = {
   provide: 'StorageInterface',
@@ -19,8 +21,9 @@ const storageProvider = {
 };
 
 @Module({
+  imports: [QueueModule],
   controllers: [MediaController],
-  providers: [MediaService, storageProvider, S3Storage, LocalStorage],
-  exports: [MediaService],
+  providers: [MediaService, storageProvider, S3Storage, LocalStorage, OpenAIService],
+  exports: [MediaService, OpenAIService],
 })
 export class MediaModule {}

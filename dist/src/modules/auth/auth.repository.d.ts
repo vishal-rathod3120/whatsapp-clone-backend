@@ -5,42 +5,51 @@ export declare class AuthRepository {
     constructor(prisma: PrismaService);
     findUserByPhoneNumber(phoneNumber: string): Promise<{
         id: string;
-        avatarUrl: string | null;
-        createdAt: Date;
-        updatedAt: Date;
         phoneNumber: string | null;
         email: string | null;
         username: string | null;
         displayName: string;
+        avatarUrl: string | null;
         aboutText: string | null;
         passwordHash: string | null;
+        phoneHash: string | null;
         isVerified: boolean;
+        failedLoginAttempts: number;
+        lockedUntil: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     } | null>;
     findUserByEmail(email: string): Promise<{
         id: string;
-        avatarUrl: string | null;
-        createdAt: Date;
-        updatedAt: Date;
         phoneNumber: string | null;
         email: string | null;
         username: string | null;
         displayName: string;
+        avatarUrl: string | null;
         aboutText: string | null;
         passwordHash: string | null;
+        phoneHash: string | null;
         isVerified: boolean;
+        failedLoginAttempts: number;
+        lockedUntil: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     } | null>;
     findUserById(id: string): Promise<{
         id: string;
-        avatarUrl: string | null;
-        createdAt: Date;
-        updatedAt: Date;
         phoneNumber: string | null;
         email: string | null;
         username: string | null;
         displayName: string;
+        avatarUrl: string | null;
         aboutText: string | null;
         passwordHash: string | null;
+        phoneHash: string | null;
         isVerified: boolean;
+        failedLoginAttempts: number;
+        lockedUntil: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     } | null>;
     createUser(data: {
         displayName: string;
@@ -60,21 +69,25 @@ export declare class AuthRepository {
             pushToken: string | null;
             refreshTokenHash: string | null;
             publicKey: string | null;
+            registrationId: number | null;
             isRevoked: boolean;
             lastActiveAt: Date | null;
         }[];
     } & {
         id: string;
-        avatarUrl: string | null;
-        createdAt: Date;
-        updatedAt: Date;
         phoneNumber: string | null;
         email: string | null;
         username: string | null;
         displayName: string;
+        avatarUrl: string | null;
         aboutText: string | null;
         passwordHash: string | null;
+        phoneHash: string | null;
         isVerified: boolean;
+        failedLoginAttempts: number;
+        lockedUntil: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     createDevice(data: {
         userId: string;
@@ -90,6 +103,7 @@ export declare class AuthRepository {
         pushToken: string | null;
         refreshTokenHash: string | null;
         publicKey: string | null;
+        registrationId: number | null;
         isRevoked: boolean;
         lastActiveAt: Date | null;
     }>;
@@ -102,6 +116,7 @@ export declare class AuthRepository {
         pushToken: string | null;
         refreshTokenHash: string | null;
         publicKey: string | null;
+        registrationId: number | null;
         isRevoked: boolean;
         lastActiveAt: Date | null;
     }>;
@@ -114,6 +129,7 @@ export declare class AuthRepository {
         pushToken: string | null;
         refreshTokenHash: string | null;
         publicKey: string | null;
+        registrationId: number | null;
         isRevoked: boolean;
         lastActiveAt: Date | null;
     }[]>;
@@ -126,6 +142,7 @@ export declare class AuthRepository {
         pushToken: string | null;
         refreshTokenHash: string | null;
         publicKey: string | null;
+        registrationId: number | null;
         isRevoked: boolean;
         lastActiveAt: Date | null;
     } | null>;

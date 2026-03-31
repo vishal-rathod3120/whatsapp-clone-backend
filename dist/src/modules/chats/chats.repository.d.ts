@@ -6,171 +6,192 @@ export declare class ChatsRepository {
         members: {
             id: string;
             userId: string;
-            role: import(".prisma/client").$Enums.ChatMemberRole;
+            chatId: string;
             joinedAt: Date;
             leftAt: Date | null;
+            role: import(".prisma/client").$Enums.ChatMemberRole;
             isMuted: boolean;
             mutedUntil: Date | null;
             isPinned: boolean;
+            isArchived: boolean;
             wallpaperUrl: string | null;
             lastReadMessageId: string | null;
-            chatId: string;
         }[];
     } & {
         id: string;
+        avatarUrl: string | null;
+        createdAt: Date;
+        updatedAt: Date;
         type: import(".prisma/client").$Enums.ChatType;
         title: string | null;
-        avatarUrl: string | null;
+        description: string | null;
         createdById: string;
+        communityId: string | null;
+        isAnnouncement: boolean;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
         disappearingTimer: number | null;
-        createdAt: Date;
-        updatedAt: Date;
     }) | null>;
     createDirectChat(userId: string, targetUserId: string): Promise<{
         members: ({
             user: {
                 id: string;
-                avatarUrl: string | null;
                 displayName: string;
+                avatarUrl: string | null;
             };
         } & {
             id: string;
             userId: string;
-            role: import(".prisma/client").$Enums.ChatMemberRole;
+            chatId: string;
             joinedAt: Date;
             leftAt: Date | null;
+            role: import(".prisma/client").$Enums.ChatMemberRole;
             isMuted: boolean;
             mutedUntil: Date | null;
             isPinned: boolean;
+            isArchived: boolean;
             wallpaperUrl: string | null;
             lastReadMessageId: string | null;
-            chatId: string;
         })[];
     } & {
         id: string;
+        avatarUrl: string | null;
+        createdAt: Date;
+        updatedAt: Date;
         type: import(".prisma/client").$Enums.ChatType;
         title: string | null;
-        avatarUrl: string | null;
+        description: string | null;
         createdById: string;
+        communityId: string | null;
+        isAnnouncement: boolean;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
         disappearingTimer: number | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     findChatsByUserId(userId: string, limit: number, cursor?: string): Promise<({
         members: ({
             user: {
                 id: string;
-                avatarUrl: string | null;
                 phoneNumber: string | null;
                 displayName: string;
+                avatarUrl: string | null;
             };
         } & {
             id: string;
             userId: string;
-            role: import(".prisma/client").$Enums.ChatMemberRole;
+            chatId: string;
             joinedAt: Date;
             leftAt: Date | null;
+            role: import(".prisma/client").$Enums.ChatMemberRole;
             isMuted: boolean;
             mutedUntil: Date | null;
             isPinned: boolean;
+            isArchived: boolean;
             wallpaperUrl: string | null;
             lastReadMessageId: string | null;
-            chatId: string;
         })[];
         messages: {
             id: string;
-            type: import(".prisma/client").$Enums.MessageType;
             createdAt: Date;
-            senderId: string;
-            textContent: string | null;
+            type: import(".prisma/client").$Enums.MessageType;
             status: import(".prisma/client").$Enums.MessageStatus;
+            textContent: string | null;
+            senderId: string;
         }[];
     } & {
         id: string;
+        avatarUrl: string | null;
+        createdAt: Date;
+        updatedAt: Date;
         type: import(".prisma/client").$Enums.ChatType;
         title: string | null;
-        avatarUrl: string | null;
+        description: string | null;
         createdById: string;
+        communityId: string | null;
+        isAnnouncement: boolean;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
         disappearingTimer: number | null;
-        createdAt: Date;
-        updatedAt: Date;
     })[]>;
     findChatById(chatId: string): Promise<({
         members: ({
             user: {
                 id: string;
-                avatarUrl: string | null;
                 phoneNumber: string | null;
                 displayName: string;
+                avatarUrl: string | null;
                 aboutText: string | null;
             };
         } & {
             id: string;
             userId: string;
-            role: import(".prisma/client").$Enums.ChatMemberRole;
+            chatId: string;
             joinedAt: Date;
             leftAt: Date | null;
+            role: import(".prisma/client").$Enums.ChatMemberRole;
             isMuted: boolean;
             mutedUntil: Date | null;
             isPinned: boolean;
+            isArchived: boolean;
             wallpaperUrl: string | null;
             lastReadMessageId: string | null;
-            chatId: string;
         })[];
     } & {
         id: string;
+        avatarUrl: string | null;
+        createdAt: Date;
+        updatedAt: Date;
         type: import(".prisma/client").$Enums.ChatType;
         title: string | null;
-        avatarUrl: string | null;
+        description: string | null;
         createdById: string;
+        communityId: string | null;
+        isAnnouncement: boolean;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
         disappearingTimer: number | null;
-        createdAt: Date;
-        updatedAt: Date;
     }) | null>;
     findChatMember(chatId: string, userId: string): Promise<{
         id: string;
         userId: string;
-        role: import(".prisma/client").$Enums.ChatMemberRole;
+        chatId: string;
         joinedAt: Date;
         leftAt: Date | null;
+        role: import(".prisma/client").$Enums.ChatMemberRole;
         isMuted: boolean;
         mutedUntil: Date | null;
         isPinned: boolean;
+        isArchived: boolean;
         wallpaperUrl: string | null;
         lastReadMessageId: string | null;
-        chatId: string;
     } | null>;
     updateLastMessage(chatId: string, messageId: string, lastMessageAt: Date): Promise<{
         id: string;
+        avatarUrl: string | null;
+        createdAt: Date;
+        updatedAt: Date;
         type: import(".prisma/client").$Enums.ChatType;
         title: string | null;
-        avatarUrl: string | null;
+        description: string | null;
         createdById: string;
+        communityId: string | null;
+        isAnnouncement: boolean;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
         disappearingTimer: number | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     updateLastReadMessage(chatId: string, userId: string, messageId: string): Promise<{
         id: string;
         userId: string;
-        role: import(".prisma/client").$Enums.ChatMemberRole;
+        chatId: string;
         joinedAt: Date;
         leftAt: Date | null;
+        role: import(".prisma/client").$Enums.ChatMemberRole;
         isMuted: boolean;
         mutedUntil: Date | null;
         isPinned: boolean;
+        isArchived: boolean;
         wallpaperUrl: string | null;
         lastReadMessageId: string | null;
-        chatId: string;
     }>;
 }

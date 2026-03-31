@@ -13,15 +13,25 @@ const queue_module_1 = require("../common/queue/queue.module");
 const call_timeout_job_1 = require("./call-timeout.job");
 const cleanup_presence_job_1 = require("./cleanup-presence.job");
 const unread_counter_job_1 = require("./unread-counter.job");
-const message_receipt_worker_1 = require("./message-receipt.worker");
+const message_processor_1 = require("./message.processor");
+const scheduled_messages_job_1 = require("./scheduled-messages.job");
+const messages_module_1 = require("../modules/messages/messages.module");
+const media_module_1 = require("../modules/media/media.module");
+const gateway_module_1 = require("../modules/gateway/gateway.module");
 let JobsModule = class JobsModule {
 };
 exports.JobsModule = JobsModule;
 exports.JobsModule = JobsModule = __decorate([
     (0, common_1.Module)({
-        imports: [schedule_1.ScheduleModule.forRoot(), queue_module_1.QueueModule],
-        providers: [call_timeout_job_1.CallTimeoutJob, cleanup_presence_job_1.CleanupPresenceJob, unread_counter_job_1.UnreadCounterJob, message_receipt_worker_1.MessageReceiptWorker],
-        exports: [call_timeout_job_1.CallTimeoutJob, cleanup_presence_job_1.CleanupPresenceJob, unread_counter_job_1.UnreadCounterJob, message_receipt_worker_1.MessageReceiptWorker],
+        imports: [
+            schedule_1.ScheduleModule.forRoot(),
+            queue_module_1.QueueModule,
+            (0, common_1.forwardRef)(() => messages_module_1.MessagesModule),
+            media_module_1.MediaModule,
+            (0, common_1.forwardRef)(() => gateway_module_1.GatewayModule),
+        ],
+        providers: [call_timeout_job_1.CallTimeoutJob, cleanup_presence_job_1.CleanupPresenceJob, unread_counter_job_1.UnreadCounterJob, message_processor_1.MessageProcessor, scheduled_messages_job_1.ScheduledMessagesJob],
+        exports: [call_timeout_job_1.CallTimeoutJob, cleanup_presence_job_1.CleanupPresenceJob, unread_counter_job_1.UnreadCounterJob, message_processor_1.MessageProcessor, scheduled_messages_job_1.ScheduledMessagesJob],
     })
 ], JobsModule);
 //# sourceMappingURL=jobs.module.js.map

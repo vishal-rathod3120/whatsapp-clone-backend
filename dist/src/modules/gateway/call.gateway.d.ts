@@ -35,6 +35,13 @@ export declare class CallGateway {
     handleOffer(socket: Socket, payload: WebRTCPayload): void;
     handleAnswer(socket: Socket, payload: WebRTCPayload): void;
     handleIceCandidate(socket: Socket, payload: WebRTCPayload): void;
+    handleScreenShareStart(socket: Socket, payload: {
+        callId: string;
+    }): Promise<void>;
+    handleScreenShareStop(socket: Socket, payload: {
+        callId: string;
+    }): Promise<void>;
     private forwardSignaling;
+    private forwardScreenShareEvent;
 }
 export {};

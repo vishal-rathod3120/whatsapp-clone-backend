@@ -13,6 +13,8 @@ const media_controller_1 = require("./media.controller");
 const media_service_1 = require("./media.service");
 const s3_storage_1 = require("./storage/s3.storage");
 const local_storage_1 = require("./storage/local.storage");
+const openai_service_1 = require("./openai.service");
+const queue_module_1 = require("../../common/queue/queue.module");
 const storageProvider = {
     provide: 'StorageInterface',
     useFactory: (configService) => {
@@ -29,9 +31,10 @@ let MediaModule = class MediaModule {
 exports.MediaModule = MediaModule;
 exports.MediaModule = MediaModule = __decorate([
     (0, common_1.Module)({
+        imports: [queue_module_1.QueueModule],
         controllers: [media_controller_1.MediaController],
-        providers: [media_service_1.MediaService, storageProvider, s3_storage_1.S3Storage, local_storage_1.LocalStorage],
-        exports: [media_service_1.MediaService],
+        providers: [media_service_1.MediaService, storageProvider, s3_storage_1.S3Storage, local_storage_1.LocalStorage, openai_service_1.OpenAIService],
+        exports: [media_service_1.MediaService, openai_service_1.OpenAIService],
     })
 ], MediaModule);
 //# sourceMappingURL=media.module.js.map

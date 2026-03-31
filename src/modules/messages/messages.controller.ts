@@ -1,7 +1,9 @@
 import { Controller, Get, Param, Query, Post, Body, Delete, UseGuards, Patch } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { MessagesService } from './messages.service';
-import { GetMessagesQueryDto, SendMessageDto, EditMessageDto } from './dto/message.dto';
+import { SearchService } from './search.service';
+import { GetMessagesQueryDto, SendMessageDto, EditMessageDto, ScheduleMessageDto } from './dto/message.dto';
+import { SearchMessagesDto } from './dto/search-messages.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/types/jwt-payload.type';
@@ -12,7 +14,10 @@ import { getLinkPreview } from 'link-preview-js';
 @UseGuards(JwtAuthGuard)
 @Controller('chats/:chatId/messages')
 export class MessagesController {
-  constructor(private messagesService: MessagesService) {}
+  constructor(
+    private messagesService: MessagesService,
+    private searchService: SearchService,
+  ) {}
 
   @Get('link-preview')
   @ApiOperation({ summary: 'Get metadata for a URL link preview' })
@@ -97,9 +102,77 @@ export class MessagesController {
 
   @Get('starred')
   @ApiOperation({ summary: 'Get all starred messages for the current user' })
-  // Note: We'll overwrite the `/chats/:chatId/messages/starred` route trick to work globally or for a specific chat.
-  // Actually, we should put the global get starred messages in a different controller, but since the base route is `/chats/:chatId/messages`, we can use `userId` to fetch them globally from the service.
   async getStarredMessages(@CurrentUser() user: JwtPayload) {
     return this.messagesService.getStarredMessages(user.sub);
+  }
+
+  @Get('search')
+  @ApiOperation({ summary: 'Search messages across chats or within a specific chat' })
+  async searchMessages(
+    @Param('chatId') chatId: string,
+    @Query() query: SearchMessagesDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.searchService.searchMessages(user.sub, query.q, {
+      chatId: chatId !== '_' ? chatId : query.chatId, // Allow '_' as wildcard for global search
+      limit: query.limit,
+      offset: query.offset,
+    });
+  }
+
+  @Post(':messageId/pin')
+  @ApiOperation({ summary: 'Pin a message in the chat' })
+  async pinMessage(
+    @Param('chatId') chatId: string,
+    @Param('messageId') messageId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.messagesService.pinMessage(chatId, messageId, user.sub);
+  }
+
+  @Delete(':messageId/pin')
+  @ApiOperation({ summary: 'Unpin a message' })
+  async unpinMessage(
+    @Param('chatId') chatId: string,
+    @Param('messageId') messageId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.messagesService.unpinMessage(chatId, messageId, user.sub);
+  }
+
+  @Get('pinned')
+  @ApiOperation({ summary: 'Get all pinned messages in a chat' })
+  async getPinnedMessages(
+    @Param('chatId') chatId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.messagesService.getPinnedMessages(chatId, user.sub);
+  }
+
+  @Post('schedule')
+  @ApiOperation({ summary: 'Schedule a message' })
+  async scheduleMessage(
+    @Param('chatId') chatId: string,
+    @Body() dto: ScheduleMessageDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.messagesService.scheduleMessage(chatId, user.sub, dto);
+  }
+
+  @Get('scheduled')
+  @ApiOperation({ summary: 'Get scheduled messages' })
+  async getScheduledMessages(
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.messagesService.getScheduledMessages(user.sub);
+  }
+
+  @Delete('scheduled/:messageId')
+  @ApiOperation({ summary: 'Cancel a scheduled message' })
+  async cancelScheduledMessage(
+    @Param('messageId') messageId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.messagesService.cancelScheduledMessage(messageId, user.sub);
   }
 }

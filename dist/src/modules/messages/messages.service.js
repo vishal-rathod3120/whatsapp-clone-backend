@@ -17,12 +17,18 @@ const message_queue_service_1 = require("../../common/queue/message-queue.servic
 const uuidv7_1 = require("uuidv7");
 const core_1 = require("@nestjs/core");
 const media_service_1 = require("../media/media.service");
+const e2ee_crypto_service_1 = require("../e2ee/e2ee-crypto.service");
+const search_service_1 = require("../search/search.service");
+const metrics_service_1 = require("../monitoring/metrics.service");
 let MessagesService = class MessagesService {
-    constructor(prisma, messageQueue, moduleRef, mediaService) {
+    constructor(prisma, messageQueue, moduleRef, mediaService, e2eeCrypto, searchService, metricsService) {
         this.prisma = prisma;
         this.messageQueue = messageQueue;
         this.moduleRef = moduleRef;
         this.mediaService = mediaService;
+        this.e2eeCrypto = e2eeCrypto;
+        this.searchService = searchService;
+        this.metricsService = metricsService;
     }
     get chatGateway() {
         try {
@@ -72,6 +78,7 @@ let MessagesService = class MessagesService {
             expiresAt = new Date();
             expiresAt.setSeconds(expiresAt.getSeconds() + chat.disappearingTimer);
         }
+        const { isEncrypted, encryptionType } = this.detectEncryptionFlags(dto);
         const message = await this.prisma.$transaction(async (tx) => {
             const msg = await tx.message.create({
                 data: {
@@ -84,6 +91,8 @@ let MessagesService = class MessagesService {
                     attachmentId: dto.attachmentId,
                     replyToMessageId: dto.replyToMessageId,
                     status: enums_1.MessageStatus.SENT,
+                    isEncrypted,
+                    encryptionType,
                     expiresAt,
                 },
             });
@@ -100,17 +109,80 @@ let MessagesService = class MessagesService {
             .filter((m) => m.userId !== senderId)
             .map((m) => m.userId);
         if (recipientIds.length > 0) {
-            await this.messageQueue.enqueue({
-                type: 'create_receipts',
-                data: {
-                    messageId: message.id,
-                    recipientIds,
-                },
-                priority: 5,
-                maxAttempts: 3,
-            });
+            const BATCH_SIZE = 100;
+            const receiptJobs = [];
+            const fanoutJobs = [];
+            for (let i = 0; i < recipientIds.length; i += BATCH_SIZE) {
+                const chunk = recipientIds.slice(i, i + BATCH_SIZE);
+                receiptJobs.push({
+                    type: 'create_receipts',
+                    data: {
+                        messageId: message.id,
+                        recipientIds: chunk,
+                    },
+                    priority: 7,
+                });
+            }
+            if (recipientIds.length > 50) {
+                for (let i = 0; i < recipientIds.length; i += BATCH_SIZE) {
+                    const chunk = recipientIds.slice(i, i + BATCH_SIZE);
+                    fanoutJobs.push({
+                        type: 'fanout_delivery',
+                        data: {
+                            messageId: message.id,
+                            chatId,
+                            recipientIds: chunk,
+                            message,
+                        },
+                        priority: 3,
+                    });
+                }
+            }
+            else {
+                if (this.chatGateway?.server) {
+                    recipientIds.forEach((userId) => {
+                        this.chatGateway.server.to(`user:${userId}`).emit('message:receive', {
+                            chatId,
+                            message,
+                        });
+                    });
+                }
+            }
+            await this.messageQueue.bulkEnqueue([...receiptJobs, ...fanoutJobs]);
         }
-        return this.getMessageById(message.id);
+        this.searchService.indexMessage(message);
+        this.metricsService.incrementMessagesSent();
+        return message;
+    }
+    detectEncryptionFlags(dto) {
+        if (dto.isEncrypted) {
+            return {
+                isEncrypted: true,
+                encryptionType: dto.encryptionType ?? 'signal',
+            };
+        }
+        if (!dto.textContent || typeof dto.textContent !== 'string') {
+            return { isEncrypted: false, encryptionType: null };
+        }
+        try {
+            const parsed = JSON.parse(dto.textContent);
+            if (parsed?.header && parsed?.ciphertext) {
+                return { isEncrypted: true, encryptionType: 'signal' };
+            }
+            if (parsed?.ciphertext?.header?.groupId && parsed?.ciphertext?.ciphertext) {
+                return { isEncrypted: true, encryptionType: 'signal' };
+            }
+            if (parsed && typeof parsed === 'object') {
+                for (const value of Object.values(parsed)) {
+                    if (value?.header && value?.ciphertext) {
+                        return { isEncrypted: true, encryptionType: 'signal' };
+                    }
+                }
+            }
+        }
+        catch {
+        }
+        return { isEncrypted: false, encryptionType: null };
     }
     async getMessageById(messageId) {
         const message = await this.prisma.message.findUnique({
@@ -346,6 +418,7 @@ let MessagesService = class MessagesService {
                     });
                 });
             }
+            await this.searchService.removeMessage(messageId);
             return { success: true, type: 'EVERYONE' };
         }
         else {
@@ -398,6 +471,7 @@ let MessagesService = class MessagesService {
                 editedAt: updated.editedAt,
             });
         });
+        this.searchService.indexMessage(updated);
         return updated;
     }
     async starMessage(chatId, messageId, userId) {
@@ -486,6 +560,139 @@ let MessagesService = class MessagesService {
             };
         });
     }
+    async pinMessage(chatId, messageId, userId) {
+        const message = await this.prisma.message.findUnique({
+            where: { id: messageId },
+        });
+        if (!message || message.chatId !== chatId) {
+            throw new common_1.NotFoundException('Message not found');
+        }
+        const updated = await this.prisma.message.update({
+            where: { id: messageId },
+            data: {
+                isPinned: true,
+                pinnedAt: new Date(),
+                pinnedBy: userId,
+            },
+        });
+        const members = await this.prisma.chatMember.findMany({
+            where: { chatId, leftAt: null },
+            select: { userId: true },
+        });
+        if (this.chatGateway?.server) {
+            members.forEach((m) => {
+                this.chatGateway.server.to(`user:${m.userId}`).emit('message:pinned', {
+                    chatId,
+                    messageId,
+                    pinnedBy: userId,
+                    pinnedAt: updated.pinnedAt,
+                });
+            });
+        }
+        return { success: true };
+    }
+    async unpinMessage(chatId, messageId, userId) {
+        const message = await this.prisma.message.findUnique({
+            where: { id: messageId },
+        });
+        if (!message || message.chatId !== chatId) {
+            throw new common_1.NotFoundException('Message not found');
+        }
+        await this.prisma.message.update({
+            where: { id: messageId },
+            data: {
+                isPinned: false,
+                pinnedAt: null,
+                pinnedBy: null,
+            },
+        });
+        const members = await this.prisma.chatMember.findMany({
+            where: { chatId, leftAt: null },
+            select: { userId: true },
+        });
+        if (this.chatGateway?.server) {
+            members.forEach((m) => {
+                this.chatGateway.server.to(`user:${m.userId}`).emit('message:unpinned', {
+                    chatId,
+                    messageId,
+                    unpinnedBy: userId,
+                });
+            });
+        }
+        return { success: true };
+    }
+    async getPinnedMessages(chatId, userId) {
+        const isMember = await this.prisma.chatMember.findFirst({
+            where: { chatId, userId, leftAt: null },
+        });
+        if (!isMember) {
+            throw new common_1.NotFoundException('Chat not found or user is not a member');
+        }
+        return this.prisma.message.findMany({
+            where: {
+                chatId,
+                isPinned: true,
+                isDeleted: false,
+            },
+            orderBy: { pinnedAt: 'desc' },
+            include: {
+                sender: {
+                    select: {
+                        id: true,
+                        displayName: true,
+                        avatarUrl: true,
+                    },
+                },
+                attachment: true,
+            },
+        });
+    }
+    async scheduleMessage(chatId, userId, dto) {
+        const isMember = await this.prisma.chatMember.findFirst({
+            where: { chatId, userId, leftAt: null },
+        });
+        if (!isMember) {
+            throw new common_1.ForbiddenException('You must be a member of the chat to schedule messages');
+        }
+        if (dto.scheduledAt.getTime() <= Date.now()) {
+            throw new common_1.ForbiddenException('Scheduled time must be in the future');
+        }
+        const scheduled = await this.prisma.scheduledMessage.create({
+            data: {
+                chatId,
+                userId,
+                type: dto.type,
+                textContent: dto.textContent,
+                attachmentId: dto.attachmentId,
+                scheduledAt: dto.scheduledAt,
+                status: 'PENDING',
+            },
+        });
+        return scheduled;
+    }
+    async getScheduledMessages(userId) {
+        return this.prisma.scheduledMessage.findMany({
+            where: { userId },
+            orderBy: { scheduledAt: 'asc' },
+            include: { attachment: true },
+        });
+    }
+    async cancelScheduledMessage(messageId, userId) {
+        const scheduled = await this.prisma.scheduledMessage.findUnique({
+            where: { id: messageId },
+        });
+        if (!scheduled || scheduled.userId !== userId) {
+            throw new common_1.NotFoundException('Scheduled message not found');
+        }
+        if (scheduled.status !== 'PENDING') {
+            throw new common_1.ForbiddenException(`Cannot cancel message that is already ${scheduled.status}`);
+        }
+        await this.prisma.scheduledMessage.update({
+            where: { id: messageId },
+            data: { status: 'CANCELLED' },
+        });
+        return { success: true };
+    }
 };
 exports.MessagesService = MessagesService;
 exports.MessagesService = MessagesService = __decorate([
@@ -493,6 +700,9 @@ exports.MessagesService = MessagesService = __decorate([
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         message_queue_service_1.MessageQueueService,
         core_1.ModuleRef,
-        media_service_1.MediaService])
+        media_service_1.MediaService,
+        e2ee_crypto_service_1.E2EECryptoService,
+        search_service_1.SearchService,
+        metrics_service_1.MetricsService])
 ], MessagesService);
 //# sourceMappingURL=messages.service.js.map

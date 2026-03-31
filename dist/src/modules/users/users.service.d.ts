@@ -5,30 +5,30 @@ export declare class UsersService {
     constructor(prisma: PrismaService);
     findById(userId: string): Promise<{
         id: string;
-        avatarUrl: string | null;
-        createdAt: Date;
         phoneNumber: string | null;
         email: string | null;
         displayName: string;
+        avatarUrl: string | null;
         aboutText: string | null;
         isVerified: boolean;
+        createdAt: Date;
     }>;
     searchUsers(query: string, currentUserId: string): Promise<{
         id: string;
-        avatarUrl: string | null;
         phoneNumber: string | null;
         displayName: string;
+        avatarUrl: string | null;
         aboutText: string | null;
     }[]>;
     updateProfile(userId: string, dto: UpdateProfileDto): Promise<{
         id: string;
-        avatarUrl: string | null;
-        updatedAt: Date;
         phoneNumber: string | null;
         email: string | null;
         displayName: string;
+        avatarUrl: string | null;
         aboutText: string | null;
         isVerified: boolean;
+        updatedAt: Date;
     }>;
     blockUser(blockerId: string, blockedId: string): Promise<{
         success: boolean;
@@ -38,9 +38,9 @@ export declare class UsersService {
     }>;
     getBlockedUsers(userId: string): Promise<{
         id: string;
-        avatarUrl: string | null;
         phoneNumber: string | null;
         displayName: string;
+        avatarUrl: string | null;
     }[]>;
     isBlocked(blockerId: string, blockedId: string): Promise<boolean>;
 }

@@ -8,27 +8,31 @@ export declare class ChatsController {
         members: {
             id: string;
             userId: string;
-            role: import(".prisma/client").$Enums.ChatMemberRole;
+            chatId: string;
             joinedAt: Date;
             leftAt: Date | null;
+            role: import(".prisma/client").$Enums.ChatMemberRole;
             isMuted: boolean;
             mutedUntil: Date | null;
             isPinned: boolean;
+            isArchived: boolean;
             wallpaperUrl: string | null;
             lastReadMessageId: string | null;
-            chatId: string;
         }[];
     } & {
         id: string;
+        avatarUrl: string | null;
+        createdAt: Date;
+        updatedAt: Date;
         type: import(".prisma/client").$Enums.ChatType;
         title: string | null;
-        avatarUrl: string | null;
+        description: string | null;
         createdById: string;
+        communityId: string | null;
+        isAnnouncement: boolean;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
         disappearingTimer: number | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     getChats(query: GetChatsQueryDto, user: JwtPayload): Promise<{
         items: {
@@ -38,11 +42,11 @@ export declare class ChatsController {
             avatarUrl: string | null | undefined;
             lastMessage: {
                 id: string;
-                type: import(".prisma/client").$Enums.MessageType;
                 createdAt: Date;
-                senderId: string;
-                textContent: string | null;
+                type: import(".prisma/client").$Enums.MessageType;
                 status: import(".prisma/client").$Enums.MessageStatus;
+                textContent: string | null;
+                senderId: string;
             };
             unreadCount: number;
             lastMessageAt: Date | null;
@@ -82,33 +86,37 @@ export declare class ChatsController {
         members: ({
             user: {
                 id: string;
-                avatarUrl: string | null;
                 displayName: string;
+                avatarUrl: string | null;
             };
         } & {
             id: string;
             userId: string;
-            role: import(".prisma/client").$Enums.ChatMemberRole;
+            chatId: string;
             joinedAt: Date;
             leftAt: Date | null;
+            role: import(".prisma/client").$Enums.ChatMemberRole;
             isMuted: boolean;
             mutedUntil: Date | null;
             isPinned: boolean;
+            isArchived: boolean;
             wallpaperUrl: string | null;
             lastReadMessageId: string | null;
-            chatId: string;
         })[];
     } & {
         id: string;
+        avatarUrl: string | null;
+        createdAt: Date;
+        updatedAt: Date;
         type: import(".prisma/client").$Enums.ChatType;
         title: string | null;
-        avatarUrl: string | null;
+        description: string | null;
         createdById: string;
+        communityId: string | null;
+        isAnnouncement: boolean;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
         disappearingTimer: number | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     addGroupMembers(chatId: string, dto: AddMembersDto, user: JwtPayload): Promise<{
         success: boolean;
@@ -122,15 +130,18 @@ export declare class ChatsController {
     }>;
     updateGroupInfo(chatId: string, dto: UpdateGroupDto, user: JwtPayload): Promise<{
         id: string;
+        avatarUrl: string | null;
+        createdAt: Date;
+        updatedAt: Date;
         type: import(".prisma/client").$Enums.ChatType;
         title: string | null;
-        avatarUrl: string | null;
+        description: string | null;
         createdById: string;
+        communityId: string | null;
+        isAnnouncement: boolean;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
         disappearingTimer: number | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     deleteGroup(chatId: string, user: JwtPayload): Promise<{
         success: boolean;
@@ -139,15 +150,18 @@ export declare class ChatsController {
         timer: number | null;
     }, user: JwtPayload): Promise<{
         id: string;
+        avatarUrl: string | null;
+        createdAt: Date;
+        updatedAt: Date;
         type: import(".prisma/client").$Enums.ChatType;
         title: string | null;
-        avatarUrl: string | null;
+        description: string | null;
         createdById: string;
+        communityId: string | null;
+        isAnnouncement: boolean;
         lastMessageId: string | null;
         lastMessageAt: Date | null;
         disappearingTimer: number | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     togglePin(chatId: string, body: {
         isPinned: boolean;
@@ -168,5 +182,16 @@ export declare class ChatsController {
     }, user: JwtPayload): Promise<{
         success: boolean;
         wallpaperUrl: string | null;
+    }>;
+    archiveChat(chatId: string, user: JwtPayload): Promise<{
+        success: boolean;
+    }>;
+    unarchiveChat(chatId: string, user: JwtPayload): Promise<{
+        success: boolean;
+    }>;
+    exportChat(chatId: string, format: 'json' | 'txt', user: JwtPayload): Promise<{
+        filename: string;
+        content: string;
+        mimeType: string;
     }>;
 }

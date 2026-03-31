@@ -16,13 +16,16 @@ exports.MessagesController = void 0;
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 const messages_service_1 = require("./messages.service");
+const search_service_1 = require("./search.service");
 const message_dto_1 = require("./dto/message.dto");
+const search_messages_dto_1 = require("./dto/search-messages.dto");
 const jwt_auth_guard_1 = require("../../common/guards/jwt-auth.guard");
 const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
 const link_preview_js_1 = require("link-preview-js");
 let MessagesController = class MessagesController {
-    constructor(messagesService) {
+    constructor(messagesService, searchService) {
         this.messagesService = messagesService;
+        this.searchService = searchService;
     }
     async getLinkPreview(url) {
         try {
@@ -61,6 +64,31 @@ let MessagesController = class MessagesController {
     }
     async getStarredMessages(user) {
         return this.messagesService.getStarredMessages(user.sub);
+    }
+    async searchMessages(chatId, query, user) {
+        return this.searchService.searchMessages(user.sub, query.q, {
+            chatId: chatId !== '_' ? chatId : query.chatId,
+            limit: query.limit,
+            offset: query.offset,
+        });
+    }
+    async pinMessage(chatId, messageId, user) {
+        return this.messagesService.pinMessage(chatId, messageId, user.sub);
+    }
+    async unpinMessage(chatId, messageId, user) {
+        return this.messagesService.unpinMessage(chatId, messageId, user.sub);
+    }
+    async getPinnedMessages(chatId, user) {
+        return this.messagesService.getPinnedMessages(chatId, user.sub);
+    }
+    async scheduleMessage(chatId, dto, user) {
+        return this.messagesService.scheduleMessage(chatId, user.sub, dto);
+    }
+    async getScheduledMessages(user) {
+        return this.messagesService.getScheduledMessages(user.sub);
+    }
+    async cancelScheduledMessage(messageId, user) {
+        return this.messagesService.cancelScheduledMessage(messageId, user.sub);
     }
 };
 exports.MessagesController = MessagesController;
@@ -143,11 +171,78 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], MessagesController.prototype, "getStarredMessages", null);
+__decorate([
+    (0, common_1.Get)('search'),
+    (0, swagger_1.ApiOperation)({ summary: 'Search messages across chats or within a specific chat' }),
+    __param(0, (0, common_1.Param)('chatId')),
+    __param(1, (0, common_1.Query)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, search_messages_dto_1.SearchMessagesDto, Object]),
+    __metadata("design:returntype", Promise)
+], MessagesController.prototype, "searchMessages", null);
+__decorate([
+    (0, common_1.Post)(':messageId/pin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Pin a message in the chat' }),
+    __param(0, (0, common_1.Param)('chatId')),
+    __param(1, (0, common_1.Param)('messageId')),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", Promise)
+], MessagesController.prototype, "pinMessage", null);
+__decorate([
+    (0, common_1.Delete)(':messageId/pin'),
+    (0, swagger_1.ApiOperation)({ summary: 'Unpin a message' }),
+    __param(0, (0, common_1.Param)('chatId')),
+    __param(1, (0, common_1.Param)('messageId')),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", Promise)
+], MessagesController.prototype, "unpinMessage", null);
+__decorate([
+    (0, common_1.Get)('pinned'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get all pinned messages in a chat' }),
+    __param(0, (0, common_1.Param)('chatId')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], MessagesController.prototype, "getPinnedMessages", null);
+__decorate([
+    (0, common_1.Post)('schedule'),
+    (0, swagger_1.ApiOperation)({ summary: 'Schedule a message' }),
+    __param(0, (0, common_1.Param)('chatId')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, message_dto_1.ScheduleMessageDto, Object]),
+    __metadata("design:returntype", Promise)
+], MessagesController.prototype, "scheduleMessage", null);
+__decorate([
+    (0, common_1.Get)('scheduled'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get scheduled messages' }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], MessagesController.prototype, "getScheduledMessages", null);
+__decorate([
+    (0, common_1.Delete)('scheduled/:messageId'),
+    (0, swagger_1.ApiOperation)({ summary: 'Cancel a scheduled message' }),
+    __param(0, (0, common_1.Param)('messageId')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], MessagesController.prototype, "cancelScheduledMessage", null);
 exports.MessagesController = MessagesController = __decorate([
     (0, swagger_1.ApiTags)('Messages'),
     (0, swagger_1.ApiBearerAuth)(),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Controller)('chats/:chatId/messages'),
-    __metadata("design:paramtypes", [messages_service_1.MessagesService])
+    __metadata("design:paramtypes", [messages_service_1.MessagesService,
+        search_service_1.SearchService])
 ], MessagesController);
 //# sourceMappingURL=messages.controller.js.map

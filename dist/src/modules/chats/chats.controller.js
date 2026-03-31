@@ -66,6 +66,15 @@ let ChatsController = class ChatsController {
     async updateWallpaper(chatId, body, user) {
         return this.chatsService.updateWallpaper(chatId, user.sub, body.wallpaperUrl);
     }
+    async archiveChat(chatId, user) {
+        return this.chatsService.archiveChat(chatId, user.sub);
+    }
+    async unarchiveChat(chatId, user) {
+        return this.chatsService.unarchiveChat(chatId, user.sub);
+    }
+    async exportChat(chatId, format, user) {
+        return this.chatsService.exportChat(chatId, user.sub, format || 'json');
+    }
 };
 exports.ChatsController = ChatsController;
 __decorate([
@@ -204,6 +213,34 @@ __decorate([
     __metadata("design:paramtypes", [String, Object, Object]),
     __metadata("design:returntype", Promise)
 ], ChatsController.prototype, "updateWallpaper", null);
+__decorate([
+    (0, common_1.Post)(':chatId/archive'),
+    (0, swagger_1.ApiOperation)({ summary: 'Archive a chat' }),
+    __param(0, (0, common_1.Param)('chatId')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], ChatsController.prototype, "archiveChat", null);
+__decorate([
+    (0, common_1.Delete)(':chatId/archive'),
+    (0, swagger_1.ApiOperation)({ summary: 'Unarchive a chat' }),
+    __param(0, (0, common_1.Param)('chatId')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], ChatsController.prototype, "unarchiveChat", null);
+__decorate([
+    (0, common_1.Get)(':chatId/export'),
+    (0, swagger_1.ApiOperation)({ summary: 'Export chat history' }),
+    __param(0, (0, common_1.Param)('chatId')),
+    __param(1, (0, common_1.Query)('format')),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", Promise)
+], ChatsController.prototype, "exportChat", null);
 exports.ChatsController = ChatsController = __decorate([
     (0, swagger_1.ApiTags)('Chats'),
     (0, swagger_1.ApiBearerAuth)(),

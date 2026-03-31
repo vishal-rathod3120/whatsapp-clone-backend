@@ -7,12 +7,15 @@ import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { execSync } from 'child_process';
 
+import { MessageQueueService } from '../../common/queue/message-queue.service';
+
 @Injectable()
 export class MediaService {
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
     @Inject('StorageInterface') private storage: StorageInterface,
+    private messageQueue: MessageQueueService,
   ) {}
 
   async createAttachment(
@@ -52,6 +55,21 @@ export class MediaService {
       },
     });
 
+    if (file.mimetype.startsWith('audio/') || file.mimetype === 'video/ogg') {
+      try {
+        await this.messageQueue.enqueue({
+          type: 'transcribe_audio',
+          data: {
+            attachmentId: attachment.id,
+          },
+          priority: 3, // slightly higher priority so UI updates fast
+        });
+        Logger.log(`Enqueued transcribe_audio job for attachment ${attachment.id}`);
+      } catch (e: any) {
+        Logger.error(`Failed to enqueue transcribe job: ${e.message}`);
+      }
+    }
+
     return attachment;
   }
 
@@ -59,6 +77,17 @@ export class MediaService {
     return this.prisma.attachment.findUnique({
       where: { id },
     });
+  }
+
+  async downloadAttachment(id: string): Promise<Buffer | null> {
+    const attachment = await this.getAttachmentById(id);
+    if (!attachment) return null;
+    try {
+      return await this.storage.download(attachment.storageKey);
+    } catch (e) {
+      Logger.error(`Failed to download attachment ${id}: ${e.message}`);
+      return null;
+    }
   }
 
   private async getFileMetadata(file: Express.Multer.File): Promise<{

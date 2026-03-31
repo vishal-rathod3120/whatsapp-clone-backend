@@ -134,4 +134,32 @@ export class ChatsController {
   ) {
     return this.chatsService.updateWallpaper(chatId, user.sub, body.wallpaperUrl);
   }
+
+  @Post(':chatId/archive')
+  @ApiOperation({ summary: 'Archive a chat' })
+  async archiveChat(
+    @Param('chatId') chatId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.chatsService.archiveChat(chatId, user.sub);
+  }
+
+  @Delete(':chatId/archive')
+  @ApiOperation({ summary: 'Unarchive a chat' })
+  async unarchiveChat(
+    @Param('chatId') chatId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.chatsService.unarchiveChat(chatId, user.sub);
+  }
+
+  @Get(':chatId/export')
+  @ApiOperation({ summary: 'Export chat history' })
+  async exportChat(
+    @Param('chatId') chatId: string,
+    @Query('format') format: 'json' | 'txt',
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.chatsService.exportChat(chatId, user.sub, format || 'json');
+  }
 }

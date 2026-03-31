@@ -2,6 +2,9 @@ import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/co
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthTokenService } from './auth-token.service';
 import { RegisterDto, LoginDto, DeviceDto } from './dto/auth.dto';
+import { ContactDiscoveryService } from '../contacts/contact-discovery.service';
+import { RedisService } from '../../redis/redis.service';
+import { SecurityLogService } from './security-log.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -9,6 +12,8 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private authTokenService: AuthTokenService,
+    private redis: RedisService,
+    private securityLog: SecurityLogService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -28,6 +33,11 @@ export class AuthService {
     // Hash password
     const passwordHash = await bcrypt.hash(dto.password, 10);
 
+    // Compute phone hash for contact discovery
+    const phoneHash = dto.phoneNumber
+      ? ContactDiscoveryService.hashPhoneNumber(dto.phoneNumber)
+      : undefined;
+
     // Create user with device
     const user = await this.prisma.user.create({
       data: {
@@ -35,6 +45,7 @@ export class AuthService {
         phoneNumber: dto.phoneNumber,
         email: dto.email,
         passwordHash,
+        phoneHash,
         isVerified: true,
         devices: {
           create: {
@@ -86,11 +97,61 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // Check if account is locked
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+      throw new UnauthorizedException(
+        `Account is locked. Try again in ${minutesLeft} minute(s).`,
+      );
+    }
+
     // Verify password
     const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!isPasswordValid) {
+      // Increment failed login attempts
+      const newAttempts = user.failedLoginAttempts + 1;
+      let lockedUntil: Date | null = null;
+
+      // Lock account after 5 failed attempts (15-minute cooldown)
+      if (newAttempts >= 5) {
+        lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+      }
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: newAttempts,
+          lockedUntil,
+        },
+      });
+
+      // Log failure
+      await this.securityLog.log('LOGIN_FAILED', user.id, undefined, undefined, {
+        phoneNumber: dto.phoneNumber,
+        attempts: newAttempts,
+        locked: !!lockedUntil,
+      });
+
+      if (lockedUntil) {
+        throw new UnauthorizedException('Account is locked for 15 minutes due to multiple failed attempts.');
+      }
+
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    // Reset failed login attempts on success
+    if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: 0,
+          lockedUntil: null,
+        },
+      });
+    }
+
+    // Log success
+    await this.securityLog.log('LOGIN_SUCCESS', user.id);
 
     // Create new device session
     const device = await this.prisma.device.create({

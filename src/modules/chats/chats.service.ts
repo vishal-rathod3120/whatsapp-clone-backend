@@ -415,6 +415,18 @@ export class ChatsService {
     return !!member;
   }
 
+  async getChatAndMember(chatId: string, userId: string) {
+    const chat = await this.prisma.chat.findUnique({
+      where: { id: chatId },
+      include: {
+        members: {
+          where: { userId, leftAt: null }
+        }
+      }
+    });
+    return { chat, member: chat?.members[0] };
+  }
+
   async getOtherMemberId(chatId: string, userId: string): Promise<string | null> {
     const otherMember = await this.prisma.chatMember.findFirst({
       where: {
@@ -575,5 +587,78 @@ export class ChatsService {
       data: { wallpaperUrl }
     });
     return { success: true, wallpaperUrl };
+  }
+
+  async archiveChat(chatId: string, userId: string) {
+    await this.prisma.chatMember.update({
+      where: { chatId_userId: { chatId, userId } },
+      data: { isArchived: true },
+    });
+    return { success: true };
+  }
+
+  async unarchiveChat(chatId: string, userId: string) {
+    await this.prisma.chatMember.update({
+      where: { chatId_userId: { chatId, userId } },
+      data: { isArchived: false },
+    });
+    return { success: true };
+  }
+
+  async exportChat(chatId: string, userId: string, format: 'json' | 'txt' = 'json') {
+    // Verify membership
+    const isMember = await this.isChatMember(chatId, userId);
+    if (!isMember) {
+      throw new ForbiddenException('Not a member of this chat');
+    }
+
+    const chat = await this.prisma.chat.findUnique({
+      where: { id: chatId },
+      select: { title: true, type: true },
+    });
+
+    const messages = await this.prisma.message.findMany({
+      where: { chatId, isDeleted: false },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        sender: { select: { displayName: true } },
+        attachment: { select: { originalName: true, mimeType: true } },
+      },
+    });
+
+    if (format === 'txt') {
+      const lines = messages.map((m) => {
+        const time = m.createdAt.toISOString();
+        const sender = m.sender.displayName;
+        const content = m.textContent || (m.attachment ? `[${m.attachment.mimeType}: ${m.attachment.originalName}]` : '[media]');
+        return `[${time}] ${sender}: ${content}`;
+      });
+      return {
+        filename: `chat_export_${chatId}.txt`,
+        content: lines.join('\n'),
+        mimeType: 'text/plain',
+      };
+    }
+
+    return {
+      filename: `chat_export_${chatId}.json`,
+      content: JSON.stringify({
+        chatId,
+        title: chat?.title,
+        type: chat?.type,
+        exportedAt: new Date().toISOString(),
+        messageCount: messages.length,
+        messages: messages.map((m) => ({
+          id: m.id,
+          sender: m.sender.displayName,
+          type: m.type,
+          content: m.textContent,
+          attachment: m.attachment ? { name: m.attachment.originalName, type: m.attachment.mimeType } : null,
+          createdAt: m.createdAt,
+          editedAt: m.editedAt,
+        })),
+      }, null, 2),
+      mimeType: 'application/json',
+    };
   }
 }

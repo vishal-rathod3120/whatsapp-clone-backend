@@ -246,6 +246,12 @@ let CallGateway = class CallGateway {
     handleIceCandidate(socket, payload) {
         this.forwardSignaling('call:ice-candidate', socket, payload);
     }
+    async handleScreenShareStart(socket, payload) {
+        await this.forwardScreenShareEvent('call:screen-share-started', socket, payload.callId);
+    }
+    async handleScreenShareStop(socket, payload) {
+        await this.forwardScreenShareEvent('call:screen-share-stopped', socket, payload.callId);
+    }
     async forwardSignaling(event, socket, payload) {
         try {
             const userId = this.socketSessionService.getUserIdBySocket(socket.id);
@@ -272,6 +278,30 @@ let CallGateway = class CallGateway {
         }
         catch (error) {
             console.error(`Signaling error (${event}):`, error);
+        }
+    }
+    async forwardScreenShareEvent(event, socket, callId) {
+        try {
+            const userId = this.socketSessionService.getUserIdBySocket(socket.id);
+            if (!userId)
+                return;
+            const call = await this.prisma.call.findUnique({
+                where: { id: callId },
+                include: { participants: true },
+            });
+            if (!call)
+                return;
+            call.participants.forEach((p) => {
+                if (p.userId !== userId && p.leftAt === null) {
+                    this.io.to(`user:${p.userId}`).emit(event, {
+                        callId,
+                        userId,
+                    });
+                }
+            });
+        }
+        catch (error) {
+            console.error(`Screen share error (${event}):`, error);
         }
     }
 };
@@ -322,6 +352,18 @@ __decorate([
     __metadata("design:paramtypes", [socket_io_1.Socket, Object]),
     __metadata("design:returntype", void 0)
 ], CallGateway.prototype, "handleIceCandidate", null);
+__decorate([
+    (0, websockets_1.SubscribeMessage)('call:screen-share-start'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [socket_io_1.Socket, Object]),
+    __metadata("design:returntype", Promise)
+], CallGateway.prototype, "handleScreenShareStart", null);
+__decorate([
+    (0, websockets_1.SubscribeMessage)('call:screen-share-stop'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [socket_io_1.Socket, Object]),
+    __metadata("design:returntype", Promise)
+], CallGateway.prototype, "handleScreenShareStop", null);
 exports.CallGateway = CallGateway = __decorate([
     (0, websockets_1.WebSocketGateway)({
         cors: { origin: '*' },

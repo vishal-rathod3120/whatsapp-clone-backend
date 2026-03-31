@@ -1,102 +1,71 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { RedisService } from '../../redis/redis.service';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 
 export interface MessageQueueJob {
-  id: string;
-  type: 'push_notification' | 'cleanup_presence' | 'unread_counter' | 'create_receipts';
+  id?: string;
+  type: 'push_notification' | 'cleanup_presence' | 'unread_counter' | 'create_receipts' | 'transcribe_audio' | 'fanout_delivery';
   data: any;
-  priority: number;
-  attempts: number;
-  maxAttempts: number;
+  priority?: number;
+  attempts?: number;
+  maxAttempts?: number;
   scheduledAt?: Date;
-  createdAt: Date;
+  createdAt?: Date;
 }
 
 @Injectable()
 export class MessageQueueService {
   private readonly logger = new Logger(MessageQueueService.name);
-  private readonly QUEUE_KEY = 'message_queue';
-  private readonly PROCESSING_KEY = 'message_queue:processing';
 
-  constructor(private readonly redis: RedisService) {}
+  constructor(@InjectQueue('message_queue') private readonly messageQueue: Queue) {}
 
-  async enqueue(job: Omit<MessageQueueJob, 'id' | 'createdAt' | 'attempts'>): Promise<void> {
-    const fullJob: MessageQueueJob = {
-      ...job,
-      id: this.generateJobId(),
-      createdAt: new Date(),
-      attempts: 0,
-    };
+  async enqueue(job: MessageQueueJob): Promise<void> {
+    const defaultMaxAttempts = job.maxAttempts || 3;
+    const defaultPriority = job.priority || 5;
 
-    await this.redis.lpush(this.QUEUE_KEY, JSON.stringify(fullJob));
-    this.logger.log(`Enqueued job ${fullJob.id} of type ${job.type}`);
-  }
-
-  async dequeue(): Promise<MessageQueueJob | null> {
-    const jobJson = await this.redis.brpoplpush(this.QUEUE_KEY, this.PROCESSING_KEY, 1);
-    
-    if (!jobJson) return null;
-
-    try {
-      const job = JSON.parse(jobJson) as MessageQueueJob;
-      return job;
-    } catch (error) {
-      this.logger.error(`Failed to parse job: ${error.message}`);
-      return null;
-    }
-  }
-
-  async completeJob(jobId: string): Promise<void> {
-    const jobJson = await this.redis.lrange(this.PROCESSING_KEY, 0, -1);
-    for (const json of jobJson) {
-      try {
-        const job = JSON.parse(json) as MessageQueueJob;
-        if (job.id === jobId) {
-          await this.redis.lrem(this.PROCESSING_KEY, 1, json);
-          this.logger.log(`Completed job ${jobId}`);
-          return;
-        }
-      } catch (e) {}
-    }
-  }
-
-  async failJob(jobId: string, error: string): Promise<void> {
-    const jobJson = await this.redis.lrange(this.PROCESSING_KEY, 0, -1);
-    
-    for (const json of jobJson) {
-      try {
-        const job = JSON.parse(json) as MessageQueueJob;
-        if (job.id === jobId) {
-          job.attempts++;
-          
-          if (job.attempts >= job.maxAttempts) {
-            await this.redis.lrem(this.PROCESSING_KEY, 1, json);
-            this.logger.error(`Job ${jobId} failed permanently after ${job.attempts} attempts: ${error}`);
-          } else {
-            // Re-queue with exponential backoff
-            const delay = Math.pow(2, job.attempts) * 1000;
-            job.scheduledAt = new Date(Date.now() + delay);
-            await this.redis.lrem(this.PROCESSING_KEY, 1, json);
-            await this.redis.lpush(this.QUEUE_KEY, JSON.stringify(job));
-            this.logger.warn(`Job ${jobId} failed, retrying in ${delay}ms (attempt ${job.attempts})`);
-          }
-          break;
-        }
-      } catch (parseError) {
-        this.logger.error(`Failed to parse job in failJob: ${parseError.message}`);
+    await this.messageQueue.add(
+      job.type,
+      job.data,
+      {
+        priority: defaultPriority,
+        attempts: defaultMaxAttempts,
+        backoff: {
+          type: 'exponential',
+          delay: 2000,
+        },
+        removeOnComplete: true,
+        removeOnFail: false,
       }
-    }
+    );
+    this.logger.log(`Enqueued job of type ${job.type} into BullMQ`);
+  }
+
+  async bulkEnqueue(jobs: MessageQueueJob[]): Promise<void> {
+    const formattedJobs = jobs.map((job) => ({
+      name: job.type,
+      data: job.data,
+      opts: {
+        priority: job.priority || 5,
+        attempts: job.maxAttempts || 3,
+        backoff: {
+          type: 'exponential',
+          delay: 2000,
+        },
+        removeOnComplete: true,
+        removeOnFail: false,
+      },
+    }));
+
+    await this.messageQueue.addBulk(formattedJobs);
+    this.logger.log(`Enqueued ${jobs.length} bulk jobs into BullMQ`);
   }
 
   async getQueueLength(): Promise<number> {
-    return await this.redis.llen(this.QUEUE_KEY);
+    return await this.messageQueue.count();
   }
 
   async getProcessingLength(): Promise<number> {
-    return await this.redis.llen(this.PROCESSING_KEY);
-  }
-
-  private generateJobId(): string {
-    return `job_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    const active = await this.messageQueue.getActiveCount();
+    return active;
   }
 }

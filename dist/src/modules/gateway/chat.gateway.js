@@ -20,12 +20,14 @@ const socket_session_service_1 = require("./socket-session.service");
 const chats_service_1 = require("../chats/chats.service");
 const messages_service_1 = require("../messages/messages.service");
 const presence_repository_1 = require("../../redis/presence.repository");
+const common_1 = require("@nestjs/common");
 const notifications_service_1 = require("../notifications/notifications.service");
 const auth_token_service_1 = require("../auth/auth-token.service");
 const message_dto_1 = require("../messages/dto/message.dto");
-const common_1 = require("@nestjs/common");
+const ws_throttler_guard_1 = require("../../common/guards/ws-throttler.guard");
+const metrics_service_1 = require("../monitoring/metrics.service");
 let ChatGateway = class ChatGateway {
-    constructor(prisma, socketSessionService, chatsService, messagesService, presenceRepository, notificationsService, authTokenService) {
+    constructor(prisma, socketSessionService, chatsService, messagesService, presenceRepository, notificationsService, authTokenService, metricsService) {
         this.prisma = prisma;
         this.socketSessionService = socketSessionService;
         this.chatsService = chatsService;
@@ -33,6 +35,7 @@ let ChatGateway = class ChatGateway {
         this.presenceRepository = presenceRepository;
         this.notificationsService = notificationsService;
         this.authTokenService = authTokenService;
+        this.metricsService = metricsService;
     }
     async handleConnection(socket) {
         try {
@@ -56,6 +59,7 @@ let ChatGateway = class ChatGateway {
             }
             await this.socketSessionService.registerSocket(userId, socket.id);
             socket.join(`user:${userId}`);
+            this.metricsService.activeConnections.inc();
             await this.replayMissedMessages(userId, socket);
             const mutuals = await this.chatsService.getMutualContactIds(userId);
             mutuals.forEach(contactId => {
@@ -88,6 +92,7 @@ let ChatGateway = class ChatGateway {
         }
     }
     async handleDisconnect(socket) {
+        this.metricsService.activeConnections.dec();
         const userId = this.socketSessionService.getUserIdBySocket(socket.id);
         await this.socketSessionService.removeSocket(socket.id);
         if (userId) {
@@ -111,9 +116,13 @@ let ChatGateway = class ChatGateway {
             const userId = this.socketSessionService.getUserIdBySocket(socket.id);
             if (!userId)
                 return;
-            const isMember = await this.chatsService.isChatMember(payload.chatId, userId);
-            if (!isMember) {
+            const { chat, member } = await this.chatsService.getChatAndMember(payload.chatId, userId);
+            if (!chat || !member) {
                 socket.emit('chat:error', { message: 'Not a member of this chat' });
+                return;
+            }
+            if ((chat.type === 'CHANNEL' || chat.isAnnouncement) && (member.role !== 'ADMIN' && member.role !== 'OWNER')) {
+                socket.emit('chat:error', { message: 'Only admins can send messages here' });
                 return;
             }
             const message = await this.messagesService.createMessage(payload.chatId, userId, {
@@ -123,12 +132,17 @@ let ChatGateway = class ChatGateway {
                 attachmentId: payload.attachmentId,
                 replyToMessageId: payload.replyToMessageId,
             });
+            this.metricsService.incrementMessagesSent();
             socket.emit('chat:sent-ack', {
                 clientTempId: payload.clientTempId,
                 message,
             });
-            const recipientId = await this.chatsService.getOtherMemberId(payload.chatId, userId);
-            if (recipientId) {
+            const chatMembers = await this.prisma.chatMember.findMany({
+                where: { chatId: payload.chatId, leftAt: null, userId: { not: userId } },
+                select: { userId: true },
+            });
+            const recipientIds = chatMembers.map(m => m.userId);
+            await Promise.all(recipientIds.map(async (recipientId) => {
                 this.server.to(`user:${recipientId}`).emit('chat:new', { message });
                 await this.notificationsService.sendSilentPushNotification(recipientId, {
                     chatId: payload.chatId,
@@ -158,8 +172,12 @@ let ChatGateway = class ChatGateway {
                 else {
                     const isMuted = await this.chatsService.isChatMuted(payload.chatId, recipientId);
                     if (!isMuted) {
+                        const sender = await this.prisma.user.findUnique({
+                            where: { id: message.senderId },
+                            select: { displayName: true }
+                        });
                         await this.notificationsService.sendPushNotification(recipientId, {
-                            title: message.sender.displayName,
+                            title: sender?.displayName || 'New message',
                             body: message.textContent || 'New message',
                             data: {
                                 chatId: payload.chatId,
@@ -169,7 +187,7 @@ let ChatGateway = class ChatGateway {
                         });
                     }
                 }
-            }
+            }));
         }
         catch (error) {
             console.error('Send message error:', error);
@@ -349,6 +367,7 @@ exports.ChatGateway = ChatGateway = __decorate([
         cors: { origin: '*' },
         namespace: '/',
     }),
+    (0, common_1.UseGuards)(ws_throttler_guard_1.WsThrottlerGuard),
     __param(3, (0, common_1.Inject)((0, common_1.forwardRef)(() => messages_service_1.MessagesService))),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         socket_session_service_1.SocketSessionService,
@@ -356,6 +375,7 @@ exports.ChatGateway = ChatGateway = __decorate([
         messages_service_1.MessagesService,
         presence_repository_1.PresenceRepository,
         notifications_service_1.NotificationsService,
-        auth_token_service_1.AuthTokenService])
+        auth_token_service_1.AuthTokenService,
+        metrics_service_1.MetricsService])
 ], ChatGateway);
 //# sourceMappingURL=chat.gateway.js.map

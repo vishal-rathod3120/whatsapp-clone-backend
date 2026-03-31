@@ -11,7 +11,9 @@ import { EmojiPicker } from '../../components/EmojiPicker';
 import { CallHistory } from '../../components/CallHistory';
 import { StatusPanel } from '../../components/StatusPanel';
 import { StarredMessagesPanel } from '../../components/StarredMessagesPanel';
+import { CommunityHome } from '../../components/CommunityHome';
 import { useCall } from '../../context/CallContext';
+import { useDecryptedMedia } from '../../hooks/useDecryptedMedia';
 import './Chat.css';
 
 function formatTime(dateStr: string) {
@@ -38,8 +40,9 @@ function getInitials(name?: string) {
 // ===== SIDEBAR COMPONENT =====
 function Sidebar() {
   const { user, logout } = useAuth();
-  const { chats, loadChats, selectChat, activeChat, isLoadingChats } = useChat();
+  const { chats, communities, loadChats, selectChat, selectCommunity, activeChat, activeCommunity, isLoadingChats } = useChat();
   const { theme, toggleTheme } = useTheme();
+  const [activeTab, setActiveTab] = useState<'chats' | 'communities'>('chats');
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -88,9 +91,13 @@ function Sidebar() {
     }
   };
 
-  const filtered = chats.filter(c =>
+  const filteredChats = chats.filter(c =>
     !search || (c.title || '').toLowerCase().includes(search.toLowerCase())
   );
+
+  const filteredCommunities = communities?.filter(c =>
+    !search || (c.name || '').toLowerCase().includes(search.toLowerCase())
+  ) || [];
 
   return (
     <div className="sidebar">
@@ -113,6 +120,21 @@ function Sidebar() {
         </div>
       </div>
 
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--border-light)', padding: '0 16px', gap: '24px' }}>
+        <button 
+          style={{ flex: 1, padding: '12px 0', border: 'none', background: 'none', color: activeTab === 'chats' ? 'var(--brand-primary)' : 'var(--text-secondary)', fontWeight: activeTab === 'chats' ? 600 : 500, cursor: 'pointer', borderBottom: activeTab === 'chats' ? '3px solid var(--brand-primary)' : '3px solid transparent' }}
+          onClick={() => setActiveTab('chats')}
+        >
+          Chats
+        </button>
+        <button 
+          style={{ flex: 1, padding: '12px 0', border: 'none', background: 'none', color: activeTab === 'communities' ? 'var(--brand-primary)' : 'var(--text-secondary)', fontWeight: activeTab === 'communities' ? 600 : 500, cursor: 'pointer', borderBottom: activeTab === 'communities' ? '3px solid var(--brand-primary)' : '3px solid transparent' }}
+          onClick={() => setActiveTab('communities')}
+        >
+          Communities
+        </button>
+      </div>
+
       <div className="search-container">
         <div className="search-box">
           <span>🔍</span>
@@ -126,7 +148,33 @@ function Sidebar() {
       </div>
 
       <div className="chat-list">
-        {search.trim() ? (
+        {activeTab === 'communities' ? (
+          filteredCommunities.length === 0 ? (
+            <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-secondary)' }}>
+              No communities found
+            </div>
+          ) : (
+            filteredCommunities.map((comm: any) => (
+              <div 
+                key={comm.id} 
+                className={`chat-list-item ${activeCommunity?.id === comm.id ? 'active' : ''}`}
+                onClick={() => selectCommunity(comm)}
+              >
+                <div className="chat-avatar" style={{ borderRadius: 'var(--radius-md)', background: 'var(--brand-primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {comm.avatarUrl ? <img src={comm.avatarUrl} alt="" style={{ width: '100%', height: '100%', borderRadius: 'inherit', objectFit: 'cover' }} /> : getInitials(comm.name)}
+                </div>
+                <div className="chat-info">
+                  <div className="chat-info-top">
+                    <span className="chat-name">{comm.name}</span>
+                  </div>
+                  <div className="chat-preview">
+                    <span className="chat-last-message">Community</span>
+                  </div>
+                </div>
+              </div>
+            ))
+          )
+        ) : search.trim() ? (
           // Search Results View
           <>
             <div style={{ padding: '8px 16px', fontSize: 13, fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase' }}>
@@ -153,12 +201,12 @@ function Sidebar() {
                 </div>
               ))
             )}
-            {filtered.length > 0 && (
+            {filteredChats.length > 0 && (
               <div style={{ padding: '8px 16px', fontSize: 13, fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', borderTop: '1px solid var(--border-light)', marginTop: 8 }}>
                 Existing Chats
               </div>
             )}
-            {filtered.map(chat => (
+            {filteredChats.map(chat => (
               <ChatListItem
                 key={chat.id}
                 chat={chat}
@@ -213,7 +261,7 @@ function Sidebar() {
         <StatusPanel onClose={() => setShowStatusPanel(false)} />
       )}
       {showStarredPanel && (
-        <StarredMessagesPanel onClose={() => setShowStarredPanel(false)} onImageClick={(url) => {}} />
+        <StarredMessagesPanel onClose={() => setShowStarredPanel(false)} onImageClick={(_) => {}} />
       )}
     </div>
   );
@@ -367,6 +415,49 @@ function MessageText({ content, chatId }: { content: string; chatId: string }) {
       })()}
     </div>
   );
+}
+
+// ===== ENCRYPTED MEDIA VIEWER =====
+function EncryptedMediaViewer({ msg, onImageClick }: { msg: any; onImageClick?: (url: string) => void }) {
+  const isImage = msg.type === 'IMAGE' || msg.attachment?.mimeType?.startsWith('image/');
+  const isAudio = msg.type === 'AUDIO';
+  
+  const rawUrl = msg.attachmentUrl || (msg.attachment?.storageKey ? `http://localhost:3000/uploads/${msg.attachment.storageKey}` : null);
+  
+  const { decryptedUrl, loading, error } = useDecryptedMedia(
+    rawUrl,
+    msg.mediaKey,
+    msg.mediaIv,
+    msg.attachmentMimeType || msg.attachment?.mimeType || (isImage ? 'image/jpeg' : 'audio/webm')
+  );
+
+  if (loading) return <div style={{ padding: 10, fontSize: 13, color: 'var(--text-secondary)' }}>Decrypting secure media...</div>;
+  if (error) return <div style={{ padding: 10, fontSize: 13, color: '#ff2e74' }}>🔒 Failed to load secure media</div>;
+  if (!decryptedUrl) return null;
+
+  if (isImage) {
+    return (
+      <div className="message-media-container" onClick={() => onImageClick?.(decryptedUrl)} style={{ cursor: 'pointer' }}>
+        <img 
+          src={decryptedUrl} 
+          alt="Attachment" 
+          className="message-image" 
+          style={{ filter: msg.status === 'sending' ? 'brightness(0.7)' : 'none' }}
+        />
+      </div>
+    );
+  }
+
+  if (isAudio) {
+    return (
+      <div className="voice-message-player">
+        <span className="voice-msg-icon">🎤</span>
+        <audio controls preload="metadata" src={decryptedUrl} className="voice-audio-element" />
+      </div>
+    );
+  }
+
+  return null;
 }
 
 // ===== CONVERSATION COMPONENT =====
@@ -560,6 +651,10 @@ function Conversation() {
 
   // Group messages by date
   let lastDate = '';
+
+  const isRestrictedChannel = activeChat && 
+    (activeChat.type === 'CHANNEL' || (activeChat as any).isAnnouncement) && 
+    activeChat.members?.find((m: any) => m.userId === user?.id)?.role === 'MEMBER';
 
   return (
     <>
@@ -761,34 +856,9 @@ function Conversation() {
                         </div>
                       )}
                       {/* Media Rendering */}
-                      {(msg.type === 'IMAGE' || (msg as any).attachment?.mimeType?.startsWith('image/')) && (() => {
-                        const imgSrc = msg.attachmentUrl || 
-                          ((msg as any).attachment?.storageKey ? `http://localhost:3000/uploads/${(msg as any).attachment.storageKey}` : null);
-                         return imgSrc ? (
-                          <div className="message-media-container" onClick={() => setPreviewImageUrl(imgSrc)} style={{ cursor: 'pointer' }}>
-                            <img 
-                              src={imgSrc} 
-                              alt="Attachment" 
-                              className="message-image" 
-                              style={{ 
-                                filter: msg.status === 'sending' ? 'brightness(0.7)' : 'none'
-                              }}
-                            />
-                          </div>
-                         ) : null;
-                      })()}
-
-                      {/* Audio Message Rendering */}
-                      {msg.type === 'AUDIO' && (() => {
-                        const audioSrc = msg.attachmentUrl ||
-                          ((msg as any).attachment?.storageKey ? `http://localhost:3000/uploads/${(msg as any).attachment.storageKey}` : null);
-                        return audioSrc ? (
-                          <div className="voice-message-player">
-                            <span className="voice-msg-icon">🎤</span>
-                            <audio controls preload="metadata" src={audioSrc} className="voice-audio-element" />
-                          </div>
-                        ) : null;
-                      })()}
+                      {(msg.type === 'IMAGE' || (msg as any).attachment?.mimeType?.startsWith('image/') || msg.type === 'AUDIO') && (
+                        <EncryptedMediaViewer msg={msg} onImageClick={setPreviewImageUrl} />
+                      )}
 
                       {msg.textContent && (
                         editingMsg?.id === msg.id ? (
@@ -943,45 +1013,51 @@ function Conversation() {
       </div>
 
       <div className="message-input-area">
-        {/* Reply Preview Bar */}
-        {replyingTo && (
-          <div className="reply-bar">
-            <div className="reply-bar-content">
-              <div className="reply-bar-sender">
-                {replyingTo.sender?.displayName || (replyingTo.senderId === 'me' || replyingTo.senderId === user?.id ? 'You' : 'Unknown')}
-              </div>
-              <div className="reply-bar-text">
-                {replyingTo.type === 'IMAGE' ? '📷 Photo' : replyingTo.textContent || 'Message'}
-              </div>
-            </div>
-            <button className="reply-bar-close" onClick={() => setReplyingTo(null)}>✕</button>
+        {isRestrictedChannel ? (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', padding: '16px', background: 'var(--bg-panel)', color: 'var(--text-secondary)', fontSize: '14px', fontStyle: 'italic' }}>
+            Only admins can send messages.
           </div>
-        )}
-        <div className="message-input-row" style={{ position: 'relative' }}>
-          {showEmojiPicker && (
-            <EmojiPicker
-              onSelect={(emoji) => {
-                setInput(prev => prev + emoji);
-                inputRef.current?.focus();
-              }}
-              onClose={() => setShowEmojiPicker(false)}
-            />
-          )}
-          <button className="icon-btn" onClick={() => setShowEmojiPicker(!showEmojiPicker)}>😀</button>
-          <button className="icon-btn" onClick={handleAttachmentClick}>📎</button>
-          
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            style={{ display: 'none' }} 
-            accept="image/*,video/*"
-            onChange={handleFileChange}
-          />
+        ) : (
+          <>
+            {/* Reply Preview Bar */}
+            {replyingTo && (
+              <div className="reply-bar">
+                <div className="reply-bar-content">
+                  <div className="reply-bar-sender">
+                    {replyingTo.sender?.displayName || (replyingTo.senderId === 'me' || replyingTo.senderId === user?.id ? 'You' : 'Unknown')}
+                  </div>
+                  <div className="reply-bar-text">
+                    {replyingTo.type === 'IMAGE' ? '📷 Photo' : replyingTo.textContent || 'Message'}
+                  </div>
+                </div>
+                <button className="reply-bar-close" onClick={() => setReplyingTo(null)}>✕</button>
+              </div>
+            )}
+            <div className="message-input-row" style={{ position: 'relative' }}>
+              {showEmojiPicker && (
+                <EmojiPicker
+                  onSelect={(emoji) => {
+                    setInput(prev => prev + emoji);
+                    inputRef.current?.focus();
+                  }}
+                  onClose={() => setShowEmojiPicker(false)}
+                />
+              )}
+              <button className="icon-btn" onClick={() => setShowEmojiPicker(!showEmojiPicker)}>😀</button>
+              <button className="icon-btn" onClick={handleAttachmentClick}>📎</button>
+              
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                style={{ display: 'none' }} 
+                accept="image/*,video/*"
+                onChange={handleFileChange}
+              />
 
-          <div className="message-input-box">
-            <input
-              ref={inputRef}
-              type="text"
+              <div className="message-input-box">
+                <input
+                  ref={inputRef}
+                  type="text"
               placeholder="Type a message"
               value={input}
               onChange={e => handleInputChange(e.target.value)}
@@ -1007,6 +1083,8 @@ function Conversation() {
             </>
           )}
         </div>
+        </>
+      )}
       </div>
 
       {/* Lightbox */}
@@ -1064,11 +1142,11 @@ function Conversation() {
 
 // ===== MAIN CHAT PAGE =====
 export function ChatPage() {
-  const { activeChat, deselectChat } = useChat();
+  const { activeChat, activeCommunity, selectChat, deselectChat, chats } = useChat();
 
   // Mobile back button support via History API
   useEffect(() => {
-    if (!activeChat) return;
+    if (!activeChat && !activeCommunity) return;
 
     // Push state so browser back navigates to chat list
     window.history.pushState({ chatOpen: true }, '');
@@ -1079,12 +1157,22 @@ export function ChatPage() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [activeChat, deselectChat]);
+  }, [activeChat, activeCommunity, deselectChat]);
 
   return (
-    <div className={`chat-layout ${activeChat ? 'chat-open' : ''}`}>
+    <div className={`chat-layout ${activeChat || activeCommunity ? 'chat-open' : ''}`}>
       <Sidebar />
-      <Conversation />
+      {activeCommunity ? (
+        <CommunityHome 
+          community={activeCommunity} 
+          onSelectChat={(chatId) => {
+            const chat = chats.find((c: any) => c.id === chatId);
+            if (chat) selectChat(chat);
+          }} 
+        />
+      ) : (
+        <Conversation />
+      )}
     </div>
   );
 }

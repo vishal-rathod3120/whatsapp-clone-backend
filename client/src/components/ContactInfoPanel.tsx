@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useChat } from '../context/ChatContext';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
+import { useDecryptedMedia } from '../hooks/useDecryptedMedia';
 import './ContactInfoPanel.css';
 
 function getInitials(name?: string) {
@@ -44,6 +45,27 @@ function BlockButton({ userId, displayName }: { userId: string; displayName?: st
   );
 }
 
+// Media Item Component for E2EE Decryption Hook
+function ContactInfoMediaItem({ msg, onImageClick }: { msg: any; onImageClick: (url: string) => void }) {
+  const rawUrl = msg.attachmentUrl || (msg.attachment?.storageKey ? `http://localhost:3000/uploads/${msg.attachment.storageKey}` : null);
+  
+  const { decryptedUrl, loading, error } = useDecryptedMedia(
+    rawUrl,
+    msg.mediaKey,
+    msg.mediaIv,
+    msg.attachmentMimeType || msg.attachment?.mimeType || 'image/jpeg'
+  );
+
+  if (loading) return <div className="contact-info-media-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-secondary)', fontSize: 11, color: 'var(--text-secondary)' }}>...</div>;
+  if (!decryptedUrl || error) return null;
+
+  return (
+    <div className="contact-info-media-item" onClick={() => onImageClick(decryptedUrl)}>
+      <img src={decryptedUrl} alt="Shared media" loading="lazy" />
+    </div>
+  );
+}
+
 interface Props {
   chat: any;
   onClose: () => void;
@@ -81,11 +103,6 @@ export function ContactInfoPanel({ chat, onClose, onImageClick }: Props) {
     if (msg.attachmentUrl && msg.attachmentMimeType?.startsWith('image/')) return true;
     return false;
   });
-
-  const getImageUrl = (msg: any) => {
-    return msg.attachmentUrl ||
-      (msg.attachment?.storageKey ? `http://localhost:3000/uploads/${msg.attachment.storageKey}` : null);
-  };
 
   // For DIRECT chats, find the other member's info
   const otherMember = chat.type === 'DIRECT'
@@ -355,19 +372,9 @@ export function ContactInfoPanel({ chat, onClose, onImageClick }: Props) {
         </div>
         {mediaMessages.length > 0 ? (
           <div className="contact-info-media-grid">
-            {mediaMessages.slice(0, 9).map((msg: any) => {
-              const imgUrl = getImageUrl(msg);
-              if (!imgUrl) return null;
-              return (
-                <div
-                  key={msg.id}
-                  className="contact-info-media-item"
-                  onClick={() => onImageClick(imgUrl)}
-                >
-                  <img src={imgUrl} alt="Shared media" loading="lazy" />
-                </div>
-              );
-            })}
+            {mediaMessages.slice(0, 9).map((msg: any) => (
+              <ContactInfoMediaItem key={msg.id} msg={msg} onImageClick={onImageClick} />
+            ))}
           </div>
         ) : (
           <div className="contact-info-media-empty">

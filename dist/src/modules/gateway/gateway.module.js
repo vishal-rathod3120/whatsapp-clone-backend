@@ -22,6 +22,7 @@ const notifications_module_1 = require("../notifications/notifications.module");
 const auth_module_1 = require("../auth/auth.module");
 const redis_module_1 = require("../../redis/redis.module");
 const messages_module_1 = require("../messages/messages.module");
+const nestjs_prometheus_1 = require("@willsoto/nestjs-prometheus");
 let GatewayModule = class GatewayModule {
     constructor(redisService) {
         this.redisService = redisService;
@@ -42,7 +43,19 @@ exports.GatewayModule = GatewayModule = __decorate([
             redis_module_1.RedisModule,
             (0, common_1.forwardRef)(() => messages_module_1.MessagesModule)
         ],
-        providers: [chat_gateway_1.ChatGateway, call_gateway_1.CallGateway, socket_session_service_1.SocketSessionService],
+        providers: [
+            chat_gateway_1.ChatGateway,
+            call_gateway_1.CallGateway,
+            socket_session_service_1.SocketSessionService,
+            (0, nestjs_prometheus_1.makeGaugeProvider)({
+                name: 'websocket_active_connections',
+                help: 'Number of active websocket connections',
+            }),
+            (0, nestjs_prometheus_1.makeCounterProvider)({
+                name: 'websocket_messages_sent',
+                help: 'Total number of messages sent via websocket',
+            }),
+        ],
         exports: [socket_session_service_1.SocketSessionService, chat_gateway_1.ChatGateway, call_gateway_1.CallGateway],
     }),
     __metadata("design:paramtypes", [redis_service_1.RedisService])

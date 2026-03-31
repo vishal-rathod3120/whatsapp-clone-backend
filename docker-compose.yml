@@ -31,7 +31,23 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  meilisearch:
+    image: getmeili/meilisearch:v1.6
+    container_name: whatsapp-meilisearch
+    ports:
+      - "7700:7700"
+    environment:
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-masterKey}
+      - MEILI_NO_ANALYTICS=true
+    volumes:
+      - meilisearch_data:/meili_data
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
   redis_data:
+  meilisearch_data:

@@ -13,11 +13,16 @@ exports.AuthService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const auth_token_service_1 = require("./auth-token.service");
+const contact_discovery_service_1 = require("../contacts/contact-discovery.service");
+const redis_service_1 = require("../../redis/redis.service");
+const security_log_service_1 = require("./security-log.service");
 const bcrypt = require("bcrypt");
 let AuthService = class AuthService {
-    constructor(prisma, authTokenService) {
+    constructor(prisma, authTokenService, redis, securityLog) {
         this.prisma = prisma;
         this.authTokenService = authTokenService;
+        this.redis = redis;
+        this.securityLog = securityLog;
     }
     async register(dto) {
         const whereClause = {};
@@ -32,12 +37,16 @@ let AuthService = class AuthService {
             throw new common_1.ConflictException('User already exists with this phone number or email');
         }
         const passwordHash = await bcrypt.hash(dto.password, 10);
+        const phoneHash = dto.phoneNumber
+            ? contact_discovery_service_1.ContactDiscoveryService.hashPhoneNumber(dto.phoneNumber)
+            : undefined;
         const user = await this.prisma.user.create({
             data: {
                 displayName: dto.displayName,
                 phoneNumber: dto.phoneNumber,
                 email: dto.email,
                 passwordHash,
+                phoneHash,
                 isVerified: true,
                 devices: {
                     create: {
@@ -77,10 +86,44 @@ let AuthService = class AuthService {
         if (!user || !user.passwordHash) {
             throw new common_1.UnauthorizedException('Invalid credentials');
         }
+        if (user.lockedUntil && user.lockedUntil > new Date()) {
+            const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+            throw new common_1.UnauthorizedException(`Account is locked. Try again in ${minutesLeft} minute(s).`);
+        }
         const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
         if (!isPasswordValid) {
+            const newAttempts = user.failedLoginAttempts + 1;
+            let lockedUntil = null;
+            if (newAttempts >= 5) {
+                lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+            }
+            await this.prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    failedLoginAttempts: newAttempts,
+                    lockedUntil,
+                },
+            });
+            await this.securityLog.log('LOGIN_FAILED', user.id, undefined, undefined, {
+                phoneNumber: dto.phoneNumber,
+                attempts: newAttempts,
+                locked: !!lockedUntil,
+            });
+            if (lockedUntil) {
+                throw new common_1.UnauthorizedException('Account is locked for 15 minutes due to multiple failed attempts.');
+            }
             throw new common_1.UnauthorizedException('Invalid credentials');
         }
+        if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+            await this.prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    failedLoginAttempts: 0,
+                    lockedUntil: null,
+                },
+            });
+        }
+        await this.securityLog.log('LOGIN_SUCCESS', user.id);
         const device = await this.prisma.device.create({
             data: {
                 userId: user.id,
@@ -169,6 +212,8 @@ exports.AuthService = AuthService;
 exports.AuthService = AuthService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        auth_token_service_1.AuthTokenService])
+        auth_token_service_1.AuthTokenService,
+        redis_service_1.RedisService,
+        security_log_service_1.SecurityLogService])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map

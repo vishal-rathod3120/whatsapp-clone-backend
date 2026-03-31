@@ -4,13 +4,13 @@ export declare class UsersRepository {
     constructor(prisma: PrismaService);
     findById(userId: string): Promise<{
         id: string;
-        avatarUrl: string | null;
-        createdAt: Date;
         phoneNumber: string | null;
         email: string | null;
         displayName: string;
+        avatarUrl: string | null;
         aboutText: string | null;
         isVerified: boolean;
+        createdAt: Date;
     } | null>;
     updateProfile(userId: string, data: {
         displayName?: string;
@@ -18,20 +18,20 @@ export declare class UsersRepository {
         avatarUrl?: string;
     }): Promise<{
         id: string;
-        avatarUrl: string | null;
-        updatedAt: Date;
         phoneNumber: string | null;
         email: string | null;
         displayName: string;
+        avatarUrl: string | null;
         aboutText: string | null;
         isVerified: boolean;
+        updatedAt: Date;
     }>;
     findBlockedUsers(blockerId: string): Promise<({
         blocked: {
             id: string;
-            avatarUrl: string | null;
             phoneNumber: string | null;
             displayName: string;
+            avatarUrl: string | null;
         };
     } & {
         id: string;

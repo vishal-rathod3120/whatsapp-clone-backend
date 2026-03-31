@@ -20,11 +20,13 @@ const sharp = require("sharp");
 const fs_1 = require("fs");
 const path_1 = require("path");
 const child_process_1 = require("child_process");
+const message_queue_service_1 = require("../../common/queue/message-queue.service");
 let MediaService = class MediaService {
-    constructor(prisma, configService, storage) {
+    constructor(prisma, configService, storage, messageQueue) {
         this.prisma = prisma;
         this.configService = configService;
         this.storage = storage;
+        this.messageQueue = messageQueue;
     }
     async createAttachment(uploaderId, file, storageKey) {
         const metadata = await this.getFileMetadata(file);
@@ -53,12 +55,39 @@ let MediaService = class MediaService {
                 thumbnailKey: metadata.thumbnailKey,
             },
         });
+        if (file.mimetype.startsWith('audio/') || file.mimetype === 'video/ogg') {
+            try {
+                await this.messageQueue.enqueue({
+                    type: 'transcribe_audio',
+                    data: {
+                        attachmentId: attachment.id,
+                    },
+                    priority: 3,
+                });
+                common_1.Logger.log(`Enqueued transcribe_audio job for attachment ${attachment.id}`);
+            }
+            catch (e) {
+                common_1.Logger.error(`Failed to enqueue transcribe job: ${e.message}`);
+            }
+        }
         return attachment;
     }
     async getAttachmentById(id) {
         return this.prisma.attachment.findUnique({
             where: { id },
         });
+    }
+    async downloadAttachment(id) {
+        const attachment = await this.getAttachmentById(id);
+        if (!attachment)
+            return null;
+        try {
+            return await this.storage.download(attachment.storageKey);
+        }
+        catch (e) {
+            common_1.Logger.error(`Failed to download attachment ${id}: ${e.message}`);
+            return null;
+        }
     }
     async getFileMetadata(file) {
         const metadata = {};
@@ -126,6 +155,6 @@ exports.MediaService = MediaService = __decorate([
     (0, common_1.Injectable)(),
     __param(2, (0, common_1.Inject)('StorageInterface')),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        config_1.ConfigService, Object])
+        config_1.ConfigService, Object, message_queue_service_1.MessageQueueService])
 ], MediaService);
 //# sourceMappingURL=media.service.js.map

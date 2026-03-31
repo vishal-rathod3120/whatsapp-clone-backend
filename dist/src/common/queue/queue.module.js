@@ -8,14 +8,26 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.QueueModule = void 0;
 const common_1 = require("@nestjs/common");
+const bullmq_1 = require("@nestjs/bullmq");
+const nestjs_1 = require("@bull-board/nestjs");
+const bullMQAdapter_1 = require("@bull-board/api/bullMQAdapter");
 const message_queue_service_1 = require("./message-queue.service");
 let QueueModule = class QueueModule {
 };
 exports.QueueModule = QueueModule;
 exports.QueueModule = QueueModule = __decorate([
     (0, common_1.Module)({
+        imports: [
+            bullmq_1.BullModule.registerQueue({
+                name: 'message_queue',
+            }),
+            nestjs_1.BullBoardModule.forFeature({
+                name: 'message_queue',
+                adapter: bullMQAdapter_1.BullMQAdapter,
+            }),
+        ],
         providers: [message_queue_service_1.MessageQueueService],
-        exports: [message_queue_service_1.MessageQueueService],
+        exports: [bullmq_1.BullModule, message_queue_service_1.MessageQueueService],
     })
 ], QueueModule);
 //# sourceMappingURL=queue.module.js.map

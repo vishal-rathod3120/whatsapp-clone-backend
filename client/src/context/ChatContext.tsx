@@ -4,6 +4,9 @@ import { api } from '../services/api';
 import { socketService } from '../services/socket';
 import { playMessageSound, playSentSound } from '../services/notificationSound';
 import { useAuth } from './AuthContext';
+import { signalService, type EncryptedMessage } from '../services/e2ee/signal.service';
+import * as cryptoService from '../services/e2ee/crypto';
+import { signalStore } from '../services/e2ee/storage.service';
 
 function generateClientId() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -21,15 +24,28 @@ interface Message {
   createdAt: string;
   editedAt?: string;
   isDeleted?: boolean;
-  sender?: { displayName: string; avatarUrl?: string };
+  sender?: { displayName: string; avatarUrl?: string; aboutText?: string; phoneNumber?: string };
   clientTempId?: string;
   status?: string;
   attachmentId?: string;
   attachmentUrl?: string;
   attachmentMimeType?: string;
+  mediaKey?: string;
+  mediaIv?: string;
+  replyToMessageId?: string;
   reactions?: any[];
   expiresAt?: string;
   isStarred?: boolean;
+  isEncrypted?: boolean;
+}
+
+export interface Community {
+  id: string;
+  name: string;
+  description?: string;
+  avatarUrl?: string;
+  chats: Chat[];
+  _count?: { members: number };
 }
 
 interface Chat {
@@ -53,14 +69,19 @@ interface ChatState {
   activeChat: Chat | null;
   messages: Record<string, Message[]>;
   typingUsers: Record<string, string[]>;
+  unreadCounts: Record<string, number>;
   isLoadingChats: boolean;
   onlineUsers: string[];
   userPresence: Record<string, { status: string; lastSeen?: string }>;
   starredMessages: Message[];
+  communities: Community[];
+  activeCommunity: Community | null;
 }
 
 type ChatAction =
   | { type: 'SET_CHATS'; payload: Chat[] }
+  | { type: 'SET_COMMUNITIES'; payload: Community[] }
+  | { type: 'SET_ACTIVE_COMMUNITY'; payload: Community | null }
   | { type: 'ADD_CHAT'; payload: Chat }
   | { type: 'DELETE_CHAT'; payload: string }
   | { type: 'SET_ACTIVE_CHAT'; payload: Chat | null }
@@ -85,6 +106,10 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
     case 'SET_CHATS':
       return { ...state, chats: action.payload, isLoadingChats: false };
+    case 'SET_COMMUNITIES':
+      return { ...state, communities: action.payload };
+    case 'SET_ACTIVE_COMMUNITY':
+      return { ...state, activeCommunity: action.payload, activeChat: action.payload ? null : state.activeChat };
     case 'ADD_CHAT':
       return { ...state, chats: [action.payload, ...state.chats] };
     case 'UPDATE_CHAT': {
@@ -106,7 +131,7 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       };
     }
     case 'SET_ACTIVE_CHAT':
-      return { ...state, activeChat: action.payload };
+      return { ...state, activeChat: action.payload, activeCommunity: action.payload ? null : state.activeCommunity };
     case 'SET_MESSAGES':
       return { ...state, messages: { ...state.messages, [action.payload.chatId]: action.payload.messages } };
     case 'ADD_MESSAGE': {
@@ -153,15 +178,6 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
     case 'UPDATE_UNREAD': {
       const chats = state.chats.map(c => c.id === action.payload.chatId ? { ...c, unreadCount: action.payload.count } : c);
       return { ...state, chats };
-    }
-    case 'UPDATE_CHAT': {
-      const chat = action.payload;
-      const chats = state.chats.map(c => c.id === chat.id ? { ...c, ...chat } : c);
-      return { 
-        ...state, 
-        chats,
-        activeChat: state.activeChat?.id === chat.id ? { ...state.activeChat, ...chat } : state.activeChat
-      };
     }
     case 'SET_LOADING':
       return { ...state, isLoadingChats: action.payload };
@@ -226,16 +242,20 @@ const initialState: ChatState = {
   activeChat: null,
   messages: {},
   typingUsers: {},
+  unreadCounts: {},
   isLoadingChats: true,
   onlineUsers: [],
   userPresence: {},
   starredMessages: [],
+  communities: [],
+  activeCommunity: null,
 };
 
 interface ChatContextType extends ChatState {
   loadChats: () => Promise<void>;
   selectChat: (chat: Chat) => void;
   deselectChat: () => void;
+  selectCommunity: (community: Community | null) => void;
   loadMessages: (chatId: string) => Promise<void>;
   sendMessage: (chatId: string, text: string, replyToMessageId?: string) => void;
   sendMediaMessage: (chatId: string, file: File, type: 'IMAGE' | 'VIDEO' | 'FILE' | 'AUDIO') => Promise<void>;
@@ -267,7 +287,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
       const data = await api.getChatList();
-      dispatch({ type: 'SET_CHATS', payload: data.items || data });
+      const chats = data.items || data;
+      
+      const communities = await api.getCommunities();
+      dispatch({ type: 'SET_COMMUNITIES', payload: communities });
+
+      dispatch({ type: 'SET_CHATS', payload: chats });
     } catch (err) {
       console.error('Failed to load chats:', err);
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -282,6 +307,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const deselectChat = useCallback(() => {
     dispatch({ type: 'SET_ACTIVE_CHAT', payload: null });
+    dispatch({ type: 'SET_ACTIVE_COMMUNITY', payload: null });
+  }, []);
+
+  const selectCommunity = useCallback((community: Community | null) => {
+    dispatch({ type: 'SET_ACTIVE_COMMUNITY', payload: community });
   }, []);
 
   const loadMessages = useCallback(async (chatId: string) => {
@@ -301,7 +331,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const sendMessage = useCallback((chatId: string, text: string, replyToMessageId?: string) => {
+  const sendMessage = useCallback(async (chatId: string, text: string, replyToMessageId?: string) => {
     const clientTempId = generateClientId();
     const optimistic: Message = {
       id: clientTempId,
@@ -314,8 +344,31 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       status: 'sending',
     };
     dispatch({ type: 'ADD_MESSAGE', payload: optimistic });
-    socketService.sendMessage(chatId, { clientTempId, type: 'TEXT', textContent: text, replyToMessageId });
-  }, []);
+    
+    let payloadText = text;
+    try {
+      const chat = state.chats.find(c => c.id === chatId);
+      if (chat && user) {
+        if (chat.type === 'DIRECT') {
+          const remoteUserId = chat.members.find(m => m.userId !== user.id)?.userId;
+          if (remoteUserId) {
+             const encryptedByDevice = await signalService.encryptMessageToAllDevices(remoteUserId, text);
+             payloadText = JSON.stringify(encryptedByDevice);
+          }
+        } else if (chat.type === 'GROUP') {
+          const memberIds = chat.members.map(m => m.userId);
+          const { ciphertext, distributionRecords } = await signalService.encryptGroupMessage(chatId, memberIds, text);
+          payloadText = JSON.stringify({ ciphertext, distributionRecords });
+        }
+      }
+    } catch (err) {
+      console.error('Failed to encrypt message:', err);
+      dispatch({ type: 'UPDATE_MESSAGE', payload: { id: clientTempId, chatId, updates: { status: 'failed' } } });
+      return;
+    }
+
+    socketService.sendMessage(chatId, { clientTempId, type: 'TEXT', textContent: payloadText, replyToMessageId });
+  }, [state.chats, user]);
 
   const sendMediaMessage = useCallback(async (chatId: string, file: File, type: 'IMAGE' | 'VIDEO' | 'FILE' | 'AUDIO') => {
     const clientTempId = generateClientId();
@@ -331,12 +384,50 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       status: 'sending',
       attachmentUrl: objectUrl,
       attachmentMimeType: file.type,
+      mediaKey: undefined,
+      mediaIv: undefined
     };
     dispatch({ type: 'ADD_MESSAGE', payload: optimistic });
     
     try {
-      const data = await api.uploadMedia(file, type);
-      socketService.sendMessage(chatId, { clientTempId, type, attachmentId: data.attachmentId });
+      // 1. E2EE Media File - Encrypt Blob before upload!
+      const { encryptedBlob, mediaKeyBase64, mediaIvBase64 } = await cryptoService.encryptMediaFile(file);
+      
+      // 2. Upload ciphertext to backend natively
+      const data = await api.uploadMedia(encryptedBlob as File, type);
+      
+      // 3. Prepare payload that holds media metadata (Base64 keys)
+      const mediaPayload = {
+         mediaKey: mediaKeyBase64,
+         mediaIv: mediaIvBase64,
+         mimeType: file.type
+      };
+      
+      // Inject to chat logic
+      let payloadText = JSON.stringify(mediaPayload);
+      const chat = state.chats.find(c => c.id === chatId);
+      
+      if (chat && user) {
+        if (chat.type === 'DIRECT') {
+          const remoteUserId = chat.members.find(m => m.userId !== user.id)?.userId;
+          if (remoteUserId) {
+            const encryptedByDevice = await signalService.encryptMessageToAllDevices(remoteUserId, payloadText);
+            payloadText = JSON.stringify(encryptedByDevice);
+          }
+        } else if (chat.type === 'GROUP') {
+          const memberIds = chat.members.map(m => m.userId);
+          const { ciphertext, distributionRecords } = await signalService.encryptGroupMessage(chatId, memberIds, payloadText);
+          payloadText = JSON.stringify({ ciphertext, distributionRecords });
+        }
+      }
+
+      // Append textContent alongside the attachment wrapper!
+      socketService.sendMessage(chatId, { 
+         clientTempId, 
+         type, 
+         attachmentId: data.attachmentId,
+         textContent: payloadText 
+      });
     } catch (err) {
       console.error('Failed to send media message:', err);
       dispatch({ type: 'UPDATE_MESSAGE', payload: { id: clientTempId, chatId, updates: { status: 'failed' } } });
@@ -496,11 +587,69 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const onNewMessage = (data: { message: Message }) => {
-      dispatch({ type: 'ADD_MESSAGE', payload: data.message });
-      socketService.markDelivered(data.message.id);
+    const onNewMessage = async (data: { message: Message }) => {
+      let finalMessage = { ...data.message };
+      let isEncryptedFallback = false;
+
+      if (finalMessage.textContent && finalMessage.senderId !== user?.id) {
+         try {
+             // Try parsing JSON to see if it's an encrypted wrapper
+             const parsed = JSON.parse(finalMessage.textContent);
+             if (parsed.header && parsed.ciphertext) { // Direct message (single device legacy)
+               isEncryptedFallback = true;
+               const decrypted = await signalService.decryptMessage(finalMessage.senderId, parsed as EncryptedMessage);
+               finalMessage.textContent = decrypted;
+               finalMessage.isEncrypted = true;
+             } else if (parsed && typeof parsed === 'object') {
+               // Direct message (multi-device map): { [deviceId]: EncryptedMessage }
+               const identity = await signalStore.getIdentity();
+               const myDeviceId = identity?.deviceId;
+               if (myDeviceId && parsed[myDeviceId]?.header && parsed[myDeviceId]?.ciphertext) {
+                 isEncryptedFallback = true;
+                 const decrypted = await signalService.decryptMessage(finalMessage.senderId, parsed[myDeviceId] as EncryptedMessage);
+                 finalMessage.textContent = decrypted;
+                 finalMessage.isEncrypted = true;
+               }
+             } else if (parsed.ciphertext && parsed.ciphertext.header && parsed.ciphertext.header.groupId) { // Group message
+                 isEncryptedFallback = true;
+                 // 1. Check if there's a Sender Key distribution packet for us
+                 if (parsed.distributionRecords && user && parsed.distributionRecords[user.id]) {
+                     const keyPayloadStr = await signalService.decryptMessage(finalMessage.senderId, parsed.distributionRecords[user.id]);
+                     const keyPayload = JSON.parse(keyPayloadStr);
+                     if (keyPayload.type === 'SENDER_KEY_DISTRIBUTION') {
+                         await signalService.processSenderKeyDistribution(finalMessage.senderId, parsed.ciphertext.header.groupId, keyPayload.payload);
+                     }
+                 }
+                 // 2. Decrypt actual group message
+                 const decrypted = await signalService.decryptGroupMessage(finalMessage.senderId, parsed.ciphertext.header.groupId, parsed.ciphertext);
+                 finalMessage.textContent = decrypted;
+                 finalMessage.isEncrypted = true;
+             }
+             
+             // Extract embedded media payloads magically handled as JSON text!
+             if (finalMessage.isEncrypted) {
+               try {
+                 const innerData = JSON.parse(finalMessage.textContent);
+                 if (innerData.mediaKey && innerData.mediaIv) {
+                    finalMessage.mediaKey = innerData.mediaKey;
+                    finalMessage.mediaIv = innerData.mediaIv;
+                    // Reset textual render fallback if there wasn't an accompanying caption
+                    finalMessage.textContent = innerData.text || ''; 
+                 }
+               } catch (e) { /* ignore text */ }
+             }
+         } catch (e) {
+             // Parsing throws if plaintext, OR decryptMessage throws if bad key
+             if (isEncryptedFallback) {
+                 finalMessage.textContent = `🔒 [Message decryption failed: ${e instanceof Error ? e.message : 'Unknown'}]`;
+             }
+         }
+      }
+
+      dispatch({ type: 'ADD_MESSAGE', payload: finalMessage });
+      socketService.markDelivered(finalMessage.id);
       // Play sound for messages from other users (not currently viewed chat)
-      if (data.message.senderId !== user?.id) {
+      if (finalMessage.senderId !== user?.id) {
         playMessageSound();
       }
     };
@@ -596,7 +745,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [state.activeChat?.id, state.messages[state.activeChat?.id || '']?.length, user?.id]);
 
   return (
-    <ChatContext.Provider value={{ ...state, loadChats, selectChat, deselectChat, loadMessages, sendMessage, sendMediaMessage, deleteMessage, deleteGroup, createDirectChat, createGroupChat, refreshChat, addGroupMembers, removeGroupMember, updateMemberRole, updateGroupInfo, fetchStarredMessages, starMessage, unstarMessage, togglePin, updateMute, updateWallpaper, dispatch }}>
+    <ChatContext.Provider value={{ ...state, loadChats, selectChat, deselectChat, selectCommunity, loadMessages, sendMessage, sendMediaMessage, deleteMessage, deleteGroup, createDirectChat, createGroupChat, refreshChat, addGroupMembers, removeGroupMember, updateMemberRole, updateGroupInfo, fetchStarredMessages, starMessage, unstarMessage, togglePin, updateMute, updateWallpaper, dispatch }}>
       {children}
     </ChatContext.Provider>
   );

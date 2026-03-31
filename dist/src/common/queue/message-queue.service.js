@@ -8,94 +8,65 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
 var MessageQueueService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MessageQueueService = void 0;
 const common_1 = require("@nestjs/common");
-const redis_service_1 = require("../../redis/redis.service");
+const bullmq_1 = require("@nestjs/bullmq");
+const bullmq_2 = require("bullmq");
 let MessageQueueService = MessageQueueService_1 = class MessageQueueService {
-    constructor(redis) {
-        this.redis = redis;
+    constructor(messageQueue) {
+        this.messageQueue = messageQueue;
         this.logger = new common_1.Logger(MessageQueueService_1.name);
-        this.QUEUE_KEY = 'message_queue';
-        this.PROCESSING_KEY = 'message_queue:processing';
     }
     async enqueue(job) {
-        const fullJob = {
-            ...job,
-            id: this.generateJobId(),
-            createdAt: new Date(),
-            attempts: 0,
-        };
-        await this.redis.lpush(this.QUEUE_KEY, JSON.stringify(fullJob));
-        this.logger.log(`Enqueued job ${fullJob.id} of type ${job.type}`);
+        const defaultMaxAttempts = job.maxAttempts || 3;
+        const defaultPriority = job.priority || 5;
+        await this.messageQueue.add(job.type, job.data, {
+            priority: defaultPriority,
+            attempts: defaultMaxAttempts,
+            backoff: {
+                type: 'exponential',
+                delay: 2000,
+            },
+            removeOnComplete: true,
+            removeOnFail: false,
+        });
+        this.logger.log(`Enqueued job of type ${job.type} into BullMQ`);
     }
-    async dequeue() {
-        const jobJson = await this.redis.brpoplpush(this.QUEUE_KEY, this.PROCESSING_KEY, 1);
-        if (!jobJson)
-            return null;
-        try {
-            const job = JSON.parse(jobJson);
-            return job;
-        }
-        catch (error) {
-            this.logger.error(`Failed to parse job: ${error.message}`);
-            return null;
-        }
-    }
-    async completeJob(jobId) {
-        const jobJson = await this.redis.lrange(this.PROCESSING_KEY, 0, -1);
-        for (const json of jobJson) {
-            try {
-                const job = JSON.parse(json);
-                if (job.id === jobId) {
-                    await this.redis.lrem(this.PROCESSING_KEY, 1, json);
-                    this.logger.log(`Completed job ${jobId}`);
-                    return;
-                }
-            }
-            catch (e) { }
-        }
-    }
-    async failJob(jobId, error) {
-        const jobJson = await this.redis.lrange(this.PROCESSING_KEY, 0, -1);
-        for (const json of jobJson) {
-            try {
-                const job = JSON.parse(json);
-                if (job.id === jobId) {
-                    job.attempts++;
-                    if (job.attempts >= job.maxAttempts) {
-                        await this.redis.lrem(this.PROCESSING_KEY, 1, json);
-                        this.logger.error(`Job ${jobId} failed permanently after ${job.attempts} attempts: ${error}`);
-                    }
-                    else {
-                        const delay = Math.pow(2, job.attempts) * 1000;
-                        job.scheduledAt = new Date(Date.now() + delay);
-                        await this.redis.lrem(this.PROCESSING_KEY, 1, json);
-                        await this.redis.lpush(this.QUEUE_KEY, JSON.stringify(job));
-                        this.logger.warn(`Job ${jobId} failed, retrying in ${delay}ms (attempt ${job.attempts})`);
-                    }
-                    break;
-                }
-            }
-            catch (parseError) {
-                this.logger.error(`Failed to parse job in failJob: ${parseError.message}`);
-            }
-        }
+    async bulkEnqueue(jobs) {
+        const formattedJobs = jobs.map((job) => ({
+            name: job.type,
+            data: job.data,
+            opts: {
+                priority: job.priority || 5,
+                attempts: job.maxAttempts || 3,
+                backoff: {
+                    type: 'exponential',
+                    delay: 2000,
+                },
+                removeOnComplete: true,
+                removeOnFail: false,
+            },
+        }));
+        await this.messageQueue.addBulk(formattedJobs);
+        this.logger.log(`Enqueued ${jobs.length} bulk jobs into BullMQ`);
     }
     async getQueueLength() {
-        return await this.redis.llen(this.QUEUE_KEY);
+        return await this.messageQueue.count();
     }
     async getProcessingLength() {
-        return await this.redis.llen(this.PROCESSING_KEY);
-    }
-    generateJobId() {
-        return `job_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+        const active = await this.messageQueue.getActiveCount();
+        return active;
     }
 };
 exports.MessageQueueService = MessageQueueService;
 exports.MessageQueueService = MessageQueueService = MessageQueueService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [redis_service_1.RedisService])
+    __param(0, (0, bullmq_1.InjectQueue)('message_queue')),
+    __metadata("design:paramtypes", [bullmq_2.Queue])
 ], MessageQueueService);
 //# sourceMappingURL=message-queue.service.js.map

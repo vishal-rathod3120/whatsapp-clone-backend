@@ -8,6 +8,7 @@ import { PresenceRepository } from '../../redis/presence.repository';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuthTokenService } from '../auth/auth-token.service';
 import { SendMessageDto, DeliveredDto, SeenDto } from '../messages/dto/message.dto';
+import { MetricsService } from '../monitoring/metrics.service';
 export declare class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private prisma;
     private socketSessionService;
@@ -16,8 +17,9 @@ export declare class ChatGateway implements OnGatewayConnection, OnGatewayDiscon
     private presenceRepository;
     private notificationsService;
     private authTokenService;
+    private metricsService;
     server: Server;
-    constructor(prisma: PrismaService, socketSessionService: SocketSessionService, chatsService: ChatsService, messagesService: MessagesService, presenceRepository: PresenceRepository, notificationsService: NotificationsService, authTokenService: AuthTokenService);
+    constructor(prisma: PrismaService, socketSessionService: SocketSessionService, chatsService: ChatsService, messagesService: MessagesService, presenceRepository: PresenceRepository, notificationsService: NotificationsService, authTokenService: AuthTokenService, metricsService: MetricsService);
     handleConnection(socket: Socket): Promise<void>;
     private replayMissedMessages;
     handleDisconnect(socket: Socket): Promise<void>;

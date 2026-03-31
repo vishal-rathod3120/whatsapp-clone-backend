@@ -1,13 +1,14 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { SendMessageDto } from './dto/message.dto';
+import { SendMessageDto, ScheduleMessageDto } from './dto/message.dto';
 import { MessageType, MessageStatus, ChatType } from '../../common/enums';
 import { MessageQueueService } from '../../common/queue/message-queue.service';
 import { uuidv7 } from 'uuidv7';
 import { ModuleRef } from '@nestjs/core';
 import { MediaService } from '../media/media.service';
-// import { ChatGateway } from '../gateway/chat.gateway'; // Removed direct import to break potential cyclic dependency
-// import { forwardRef, Inject } from '@nestjs/common'; // Not needed if not directly injecting
+import { E2EECryptoService } from '../e2ee/e2ee-crypto.service';
+import { SearchService } from '../search/search.service';
+import { MetricsService } from '../monitoring/metrics.service';
 
 @Injectable()
 export class MessagesService {
@@ -16,6 +17,9 @@ export class MessagesService {
     private messageQueue: MessageQueueService,
     private moduleRef: ModuleRef,
     private mediaService: MediaService,
+    private e2eeCrypto: E2EECryptoService,
+    private searchService: SearchService,
+    private metricsService: MetricsService,
   ) {}
 
   private get chatGateway(): any {
@@ -76,6 +80,8 @@ export class MessagesService {
       expiresAt.setSeconds(expiresAt.getSeconds() + chat.disappearingTimer);
     }
 
+    const { isEncrypted, encryptionType } = this.detectEncryptionFlags(dto);
+
     // Create message and update chat in transaction (fast operations)
     const message = await this.prisma.$transaction(async (tx) => {
       // Create the message
@@ -90,6 +96,8 @@ export class MessagesService {
           attachmentId: dto.attachmentId,
           replyToMessageId: dto.replyToMessageId,
           status: MessageStatus.SENT,
+          isEncrypted,
+          encryptionType,
           expiresAt, // Add expiresAt timestamp
         },
       });
@@ -106,24 +114,113 @@ export class MessagesService {
       return msg;
     });
 
-    // Offload receipt creation to background queue (prevents blocking for large groups)
+    // Fan-out receipts and real-time delivery
     const recipientIds = members
       .filter((m) => m.userId !== senderId)
       .map((m) => m.userId);
 
     if (recipientIds.length > 0) {
-      await this.messageQueue.enqueue({
-        type: 'create_receipts',
-        data: {
-          messageId: message.id,
-          recipientIds,
-        },
-        priority: 5,
-        maxAttempts: 3,
-      });
+      const BATCH_SIZE = 100;
+      const receiptJobs: any[] = [];
+      const fanoutJobs: any[] = [];
+
+      // Chunk for receipts
+      for (let i = 0; i < recipientIds.length; i += BATCH_SIZE) {
+        const chunk = recipientIds.slice(i, i + BATCH_SIZE);
+        receiptJobs.push({
+          type: 'create_receipts',
+          data: {
+            messageId: message.id,
+            recipientIds: chunk,
+          },
+          priority: 7, // Lower priority for database syncing
+        });
+      }
+
+      // Fan-out socket emission in background for large groups (> 50)
+      if (recipientIds.length > 50) {
+        for (let i = 0; i < recipientIds.length; i += BATCH_SIZE) {
+          const chunk = recipientIds.slice(i, i + BATCH_SIZE);
+          fanoutJobs.push({
+            type: 'fanout_delivery',
+            data: {
+              messageId: message.id,
+              chatId,
+              recipientIds: chunk,
+              message,
+            },
+            priority: 3, // High priority for real-time delivery
+          });
+        }
+      } else {
+        // Direct delivery for smaller groups
+        if (this.chatGateway?.server) {
+          recipientIds.forEach((userId) => {
+            this.chatGateway.server.to(`user:${userId}`).emit('message:receive', {
+              chatId,
+              message,
+            });
+          });
+        }
+      }
+
+      // Bulk enqueue all background tasks
+      await this.messageQueue.bulkEnqueue([...receiptJobs, ...fanoutJobs]);
     }
 
-    return this.getMessageById(message.id);
+    // Index message for search
+    this.searchService.indexMessage(message);
+
+    // Record metrics
+    this.metricsService.incrementMessagesSent();
+
+    return message;
+  }
+
+  private detectEncryptionFlags(dto: SendMessageDto): { isEncrypted: boolean; encryptionType: string | null } {
+    // If client explicitly sets flags, keep them (but normalize encryptionType).
+    if (dto.isEncrypted) {
+      return {
+        isEncrypted: true,
+        encryptionType: dto.encryptionType ?? 'signal',
+      };
+    }
+
+    if (!dto.textContent || typeof dto.textContent !== 'string') {
+      return { isEncrypted: false, encryptionType: null };
+    }
+
+    // Try to detect JSON-wrapped Signal payloads.
+    // Shapes supported:
+    // - Direct (legacy single-device): { header: {...}, ciphertext: '...' }
+    // - Direct (multi-device): { [deviceId]: { header, ciphertext, ... } }
+    // - Group wrapper: { ciphertext: { header: { groupId, ... }, ciphertext: '...' }, distributionRecords: {...} }
+    try {
+      const parsed = JSON.parse(dto.textContent);
+
+      // Direct single-device
+      if (parsed?.header && parsed?.ciphertext) {
+        return { isEncrypted: true, encryptionType: 'signal' };
+      }
+
+      // Group wrapper
+      if (parsed?.ciphertext?.header?.groupId && parsed?.ciphertext?.ciphertext) {
+        return { isEncrypted: true, encryptionType: 'signal' };
+      }
+
+      // Multi-device map
+      if (parsed && typeof parsed === 'object') {
+        for (const value of Object.values(parsed as Record<string, any>)) {
+          if (value?.header && value?.ciphertext) {
+            return { isEncrypted: true, encryptionType: 'signal' };
+          }
+        }
+      }
+    } catch {
+      // Not JSON => plaintext
+    }
+
+    return { isEncrypted: false, encryptionType: null };
   }
 
   async getMessageById(messageId: string) {
@@ -391,6 +488,9 @@ export class MessagesService {
         });
       }
 
+      // Remove from search index
+      await this.searchService.removeMessage(messageId);
+
       return { success: true, type: 'EVERYONE' };
     } else {
       await this.prisma.deletedMessage.upsert({
@@ -451,6 +551,9 @@ export class MessagesService {
         editedAt: updated.editedAt,
       });
     });
+
+    // Update search index
+    this.searchService.indexMessage(updated);
 
     return updated;
   }
@@ -548,5 +651,166 @@ export class MessagesService {
         starredAt: s.createdAt
       };
     });
+  }
+
+  async pinMessage(chatId: string, messageId: string, userId: string) {
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+    });
+
+    if (!message || message.chatId !== chatId) {
+      throw new NotFoundException('Message not found');
+    }
+
+    const updated = await this.prisma.message.update({
+      where: { id: messageId },
+      data: {
+        isPinned: true,
+        pinnedAt: new Date(),
+        pinnedBy: userId,
+      },
+    });
+
+    // Broadcast pin to chat members
+    const members = await this.prisma.chatMember.findMany({
+      where: { chatId, leftAt: null },
+      select: { userId: true },
+    });
+    if (this.chatGateway?.server) {
+      members.forEach((m) => {
+        this.chatGateway.server.to(`user:${m.userId}`).emit('message:pinned', {
+          chatId,
+          messageId,
+          pinnedBy: userId,
+          pinnedAt: updated.pinnedAt,
+        });
+      });
+    }
+
+    return { success: true };
+  }
+
+  async unpinMessage(chatId: string, messageId: string, userId: string) {
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+    });
+
+    if (!message || message.chatId !== chatId) {
+      throw new NotFoundException('Message not found');
+    }
+
+    await this.prisma.message.update({
+      where: { id: messageId },
+      data: {
+        isPinned: false,
+        pinnedAt: null,
+        pinnedBy: null,
+      },
+    });
+
+    // Broadcast unpin
+    const members = await this.prisma.chatMember.findMany({
+      where: { chatId, leftAt: null },
+      select: { userId: true },
+    });
+    if (this.chatGateway?.server) {
+      members.forEach((m) => {
+        this.chatGateway.server.to(`user:${m.userId}`).emit('message:unpinned', {
+          chatId,
+          messageId,
+          unpinnedBy: userId,
+        });
+      });
+    }
+
+    return { success: true };
+  }
+
+  async getPinnedMessages(chatId: string, userId: string) {
+    // Verify membership
+    const isMember = await this.prisma.chatMember.findFirst({
+      where: { chatId, userId, leftAt: null },
+    });
+
+    if (!isMember) {
+      throw new NotFoundException('Chat not found or user is not a member');
+    }
+
+    return this.prisma.message.findMany({
+      where: {
+        chatId,
+        isPinned: true,
+        isDeleted: false,
+      },
+      orderBy: { pinnedAt: 'desc' },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+        attachment: true,
+      },
+    });
+  }
+
+  async scheduleMessage(chatId: string, userId: string, dto: ScheduleMessageDto) {
+    // Verify membership
+    const isMember = await this.prisma.chatMember.findFirst({
+      where: { chatId, userId, leftAt: null },
+    });
+
+    if (!isMember) {
+      throw new ForbiddenException('You must be a member of the chat to schedule messages');
+    }
+
+    if (dto.scheduledAt.getTime() <= Date.now()) {
+      throw new ForbiddenException('Scheduled time must be in the future');
+    }
+
+    const scheduled = await this.prisma.scheduledMessage.create({
+      data: {
+        chatId,
+        userId,
+        type: dto.type,
+        textContent: dto.textContent,
+        attachmentId: dto.attachmentId,
+        scheduledAt: dto.scheduledAt,
+        status: 'PENDING',
+      },
+    });
+
+    return scheduled;
+  }
+
+  async getScheduledMessages(userId: string) {
+    return this.prisma.scheduledMessage.findMany({
+      where: { userId },
+      orderBy: { scheduledAt: 'asc' },
+      include: { attachment: true },
+    });
+  }
+
+  async cancelScheduledMessage(messageId: string, userId: string) {
+    const scheduled = await this.prisma.scheduledMessage.findUnique({
+      where: { id: messageId },
+    });
+
+    if (!scheduled || scheduled.userId !== userId) {
+      throw new NotFoundException('Scheduled message not found');
+    }
+
+    if (scheduled.status !== 'PENDING') {
+      throw new ForbiddenException(`Cannot cancel message that is already ${scheduled.status}`);
+    }
+
+    await this.prisma.scheduledMessage.update({
+      where: { id: messageId },
+      data: { status: 'CANCELLED' },
+    });
+
+    return { success: true };
   }
 }

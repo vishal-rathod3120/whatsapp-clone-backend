@@ -20,6 +20,13 @@ export class SendMessageDto {
   @IsString()
   @IsOptional()
   replyToMessageId?: string;
+
+  @IsOptional()
+  isEncrypted?: boolean;
+
+  @IsString()
+  @IsOptional()
+  encryptionType?: string;
 }
 
 export class EditMessageDto {
@@ -54,4 +61,23 @@ export class SeenDto {
 
   @IsString()
   messageId: string;
+}
+
+export class ScheduleMessageDto {
+  @IsString()
+  chatId: string;
+
+  @IsEnum(MessageType)
+  type: MessageType;
+
+  @Type(() => Date)
+  scheduledAt: Date;
+
+  @IsString()
+  @IsOptional()
+  textContent?: string;
+
+  @IsString()
+  @IsOptional()
+  attachmentId?: string;
 }

@@ -2,6 +2,7 @@ import { createContext, useContext, useReducer, useEffect, useCallback } from 'r
 import type { ReactNode } from 'react';
 import { api } from '../services/api';
 import { socketService } from '../services/socket';
+import { signalService } from '../services/e2ee/signal.service';
 
 interface User {
   id: string;
@@ -56,10 +57,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = localStorage.getItem('accessToken');
     if (token) {
       api.getProfile()
-        .then(user => {
+        .then(async user => {
           dispatch({ type: 'SET_USER', payload: user });
           socketService.connect(token);
           socketService.registerPushNotifications();
+          const deviceId = localStorage.getItem('deviceId');
+          if (deviceId) {
+            await signalService.initializeAccount(user.id, deviceId);
+          }
         })
         .catch(() => dispatch({ type: 'LOGOUT' }));
     } else {
@@ -68,10 +73,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (phone: string, password: string) => {
+    console.log('[AuthContext] Starting login...');
     const data = await api.login(phone, password);
+    console.log('[AuthContext] Login API success, user:', data.user.id);
     dispatch({ type: 'SET_USER', payload: data.user });
+    console.log('[AuthContext] User dispatched');
     socketService.connect(data.accessToken);
     socketService.registerPushNotifications();
+    const deviceId = localStorage.getItem('deviceId');
+    console.log('[AuthContext] deviceId from localStorage:', deviceId);
+    if (deviceId) {
+      try {
+        await signalService.initializeAccount(data.user.id, deviceId);
+        console.log('[AuthContext] Signal service initialized');
+      } catch (err) {
+        console.error('[AuthContext] Signal service init failed:', err);
+        // Don't block login if signal init fails
+      }
+    }
+    console.log('[AuthContext] Login complete');
   }, []);
 
   const register = useCallback(async (name: string, phone: string, password: string) => {
@@ -79,6 +99,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_USER', payload: data.user });
     socketService.connect(data.accessToken);
     socketService.registerPushNotifications();
+    const deviceId = localStorage.getItem('deviceId');
+    if (deviceId) {
+      await signalService.initializeAccount(data.user.id, deviceId);
+    }
   }, []);
 
   const logout = useCallback(async () => {

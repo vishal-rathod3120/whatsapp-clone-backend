@@ -11,54 +11,49 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.HealthController = void 0;
 const common_1 = require("@nestjs/common");
+const terminus_1 = require("@nestjs/terminus");
+const swagger_1 = require("@nestjs/swagger");
 const prisma_service_1 = require("../prisma/prisma.service");
 const redis_service_1 = require("../redis/redis.service");
 let HealthController = class HealthController {
-    constructor(prisma, redis) {
+    constructor(health, prismaIndicator, prisma, memory, redis) {
+        this.health = health;
+        this.prismaIndicator = prismaIndicator;
         this.prisma = prisma;
+        this.memory = memory;
         this.redis = redis;
     }
-    async check() {
-        const checks = {
-            database: await this.checkDatabase(),
-            redis: await this.checkRedis(),
-        };
-        const isHealthy = Object.values(checks).every((c) => c.status === 'ok');
-        return {
-            status: isHealthy ? 'ok' : 'error',
-            timestamp: new Date().toISOString(),
-            checks,
-        };
-    }
-    async checkDatabase() {
-        try {
-            await this.prisma.$queryRaw `SELECT 1`;
-            return { status: 'ok' };
-        }
-        catch {
-            return { status: 'error', message: 'Database connection failed' };
-        }
-    }
-    async checkRedis() {
-        try {
-            await this.redis.ping();
-            return { status: 'ok' };
-        }
-        catch {
-            return { status: 'error', message: 'Redis connection failed' };
-        }
+    check() {
+        return this.health.check([
+            () => this.prismaIndicator.pingCheck('database', this.prisma),
+            () => this.memory.checkHeap('memory_heap', 1024 * 1024 * 1024),
+            async () => {
+                const isRedisUp = await this.redis.ping();
+                return {
+                    redis: {
+                        status: isRedisUp ? 'up' : 'down',
+                    },
+                };
+            },
+        ]);
     }
 };
 exports.HealthController = HealthController;
 __decorate([
     (0, common_1.Get)(),
+    (0, terminus_1.HealthCheck)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Check application health status' }),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
+    __metadata("design:returntype", void 0)
 ], HealthController.prototype, "check", null);
 exports.HealthController = HealthController = __decorate([
+    (0, swagger_1.ApiTags)('Health'),
     (0, common_1.Controller)('health'),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+    __metadata("design:paramtypes", [terminus_1.HealthCheckService,
+        terminus_1.PrismaHealthIndicator,
+        prisma_service_1.PrismaService,
+        terminus_1.MemoryHealthIndicator,
         redis_service_1.RedisService])
 ], HealthController);
 //# sourceMappingURL=health.controller.js.map

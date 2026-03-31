@@ -11,15 +11,18 @@ import { SocketSessionService } from './socket-session.service';
 import { ChatsService } from '../chats/chats.service';
 import { MessagesService } from '../messages/messages.service';
 import { PresenceRepository } from '../../redis/presence.repository';
+import { forwardRef, Inject, UseGuards } from '@nestjs/common';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuthTokenService } from '../auth/auth-token.service';
 import { SendMessageDto, DeliveredDto, SeenDto } from '../messages/dto/message.dto';
-import { forwardRef, Inject } from '@nestjs/common';
+import { WsThrottlerGuard } from '../../common/guards/ws-throttler.guard';
+import { MetricsService } from '../monitoring/metrics.service';
 
 @WebSocketGateway({
   cors: { origin: '*' },
   namespace: '/',
 })
+@UseGuards(WsThrottlerGuard)
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
@@ -33,6 +36,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private presenceRepository: PresenceRepository,
     private notificationsService: NotificationsService,
     private authTokenService: AuthTokenService,
+    private metricsService: MetricsService,
   ) {}
 
   async handleConnection(socket: Socket) {
@@ -60,6 +64,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // Register socket
       await this.socketSessionService.registerSocket(userId, socket.id);
       socket.join(`user:${userId}`);
+
+      this.metricsService.activeConnections.inc();
 
       // Replay missed messages
       await this.replayMissedMessages(userId, socket);
@@ -99,6 +105,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   async handleDisconnect(socket: Socket) {
+    this.metricsService.activeConnections.dec();
+
     const userId = this.socketSessionService.getUserIdBySocket(socket.id);
     
     await this.socketSessionService.removeSocket(socket.id);
@@ -128,10 +136,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const userId = this.socketSessionService.getUserIdBySocket(socket.id);
       if (!userId) return;
 
-      // Verify chat membership
-      const isMember = await this.chatsService.isChatMember(payload.chatId, userId);
-      if (!isMember) {
+      // Verify chat membership & role
+      const { chat, member } = await this.chatsService.getChatAndMember(payload.chatId, userId);
+      if (!chat || !member) {
         socket.emit('chat:error', { message: 'Not a member of this chat' });
+        return;
+      }
+      
+      if ((chat.type === 'CHANNEL' || chat.isAnnouncement) && (member.role !== 'ADMIN' && member.role !== 'OWNER')) {
+        socket.emit('chat:error', { message: 'Only admins can send messages here' });
         return;
       }
 
@@ -144,16 +157,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         replyToMessageId: payload.replyToMessageId,
       });
 
+      this.metricsService.incrementMessagesSent();
+
       // Acknowledge to sender
       socket.emit('chat:sent-ack', {
         clientTempId: payload.clientTempId,
         message,
       });
 
-      // Get recipient ID
-      const recipientId = await this.chatsService.getOtherMemberId(payload.chatId, userId);
+      // Get all recipient IDs
+      const chatMembers = await this.prisma.chatMember.findMany({
+        where: { chatId: payload.chatId, leftAt: null, userId: { not: userId } },
+        select: { userId: true },
+      });
+      const recipientIds = chatMembers.map(m => m.userId);
       
-      if (recipientId) {
+      await Promise.all(recipientIds.map(async (recipientId) => {
         // Send to recipient's personal room
         this.server.to(`user:${recipientId}`).emit('chat:new', { message });
 
@@ -193,8 +212,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           // Send visible push notification since user is offline
           const isMuted = await this.chatsService.isChatMuted(payload.chatId, recipientId);
           if (!isMuted) {
+            // Fetch sender info for notification
+            const sender = await this.prisma.user.findUnique({
+              where: { id: message.senderId },
+              select: { displayName: true }
+            });
             await this.notificationsService.sendPushNotification(recipientId, {
-              title: message.sender.displayName,
+              title: sender?.displayName || 'New message',
               body: message.textContent || 'New message',
               data: {
                 chatId: payload.chatId,
@@ -204,7 +228,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
             });
           }
         }
-      }
+      }));
     } catch (error) {
       console.error('Send message error:', error);
       socket.emit('chat:error', { message: 'Failed to send message' });

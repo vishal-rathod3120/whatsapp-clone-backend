@@ -294,6 +294,16 @@ export class CallGateway {
     this.forwardSignaling('call:ice-candidate', socket, payload);
   }
 
+  @SubscribeMessage('call:screen-share-start')
+  async handleScreenShareStart(socket: Socket, payload: { callId: string }) {
+    await this.forwardScreenShareEvent('call:screen-share-started', socket, payload.callId);
+  }
+
+  @SubscribeMessage('call:screen-share-stop')
+  async handleScreenShareStop(socket: Socket, payload: { callId: string }) {
+    await this.forwardScreenShareEvent('call:screen-share-stopped', socket, payload.callId);
+  }
+
   private async forwardSignaling(event: string, socket: Socket, payload: WebRTCPayload) {
     try {
       const userId = this.socketSessionService.getUserIdBySocket(socket.id);
@@ -321,6 +331,31 @@ export class CallGateway {
       });
     } catch (error) {
       console.error(`Signaling error (${event}):`, error);
+    }
+  }
+
+  private async forwardScreenShareEvent(event: string, socket: Socket, callId: string) {
+    try {
+      const userId = this.socketSessionService.getUserIdBySocket(socket.id);
+      if (!userId) return;
+
+      const call = await this.prisma.call.findUnique({
+        where: { id: callId },
+        include: { participants: true },
+      });
+
+      if (!call) return;
+
+      call.participants.forEach((p) => {
+        if (p.userId !== userId && p.leftAt === null) {
+          this.io.to(`user:${p.userId}`).emit(event, {
+            callId,
+            userId,
+          });
+        }
+      });
+    } catch (error) {
+      console.error(`Screen share error (${event}):`, error);
     }
   }
 }

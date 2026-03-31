@@ -29,7 +29,10 @@ class ApiService {
       console.error('BACKEND ERROR:', res.status, errBody);
       try {
         const errJson = JSON.parse(errBody);
-        throw new Error(errJson.message || `HTTP ${res.status}`);
+        const message = Array.isArray(errJson.message) 
+          ? errJson.message.join(', ') 
+          : errJson.message;
+        throw new Error(message || `HTTP ${res.status}`);
       } catch {
         throw new Error(errBody || `HTTP ${res.status}`);
       }
@@ -57,7 +60,6 @@ class ApiService {
     }
   }
 
-  // Auth
   async login(phoneNumber: string, password: string) {
     const phone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
     const data = await this.request<any>('/auth/login', {
@@ -66,6 +68,7 @@ class ApiService {
     });
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
+    if (data.deviceId) localStorage.setItem('deviceId', data.deviceId);
     return data;
   }
 
@@ -77,6 +80,7 @@ class ApiService {
     });
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
+    if (data.deviceId) localStorage.setItem('deviceId', data.deviceId);
     return data;
   }
 
@@ -89,6 +93,7 @@ class ApiService {
     } finally {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
+      localStorage.removeItem('deviceId');
     }
   }
 
@@ -270,6 +275,23 @@ class ApiService {
       method: 'PATCH',
       body: JSON.stringify({ wallpaperUrl }),
     });
+  }
+
+  // Communities
+  async createCommunity(data: { name: string; description?: string; avatarUrl?: string }) {
+    return this.request<any>('/communities', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  async getCommunities() {
+    return this.request<any[]>('/communities');
+  }
+
+  async addGroupToCommunity(communityId: string, chatId: string) {
+    return this.request<any>(`/communities/${communityId}/groups`, { method: 'POST', body: JSON.stringify({ chatId }) });
+  }
+
+  async removeGroupFromCommunity(communityId: string, chatId: string) {
+    return this.request<any>(`/communities/${communityId}/groups/${chatId}`, { method: 'DELETE' });
   }
 }
 

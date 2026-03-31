@@ -8,44 +8,48 @@ export declare class CallsService {
                 members: ({
                     user: {
                         id: string;
-                        avatarUrl: string | null;
                         displayName: string;
+                        avatarUrl: string | null;
                     };
                 } & {
                     id: string;
                     userId: string;
-                    role: import(".prisma/client").$Enums.ChatMemberRole;
+                    chatId: string;
                     joinedAt: Date;
                     leftAt: Date | null;
+                    role: import(".prisma/client").$Enums.ChatMemberRole;
                     isMuted: boolean;
                     mutedUntil: Date | null;
                     isPinned: boolean;
+                    isArchived: boolean;
                     wallpaperUrl: string | null;
                     lastReadMessageId: string | null;
-                    chatId: string;
                 })[];
             } & {
                 id: string;
+                avatarUrl: string | null;
+                createdAt: Date;
+                updatedAt: Date;
                 type: import(".prisma/client").$Enums.ChatType;
                 title: string | null;
-                avatarUrl: string | null;
+                description: string | null;
                 createdById: string;
+                communityId: string | null;
+                isAnnouncement: boolean;
                 lastMessageId: string | null;
                 lastMessageAt: Date | null;
                 disappearingTimer: number | null;
-                createdAt: Date;
-                updatedAt: Date;
             };
             caller: {
                 id: string;
-                avatarUrl: string | null;
                 displayName: string;
+                avatarUrl: string | null;
             };
             participants: ({
                 user: {
                     id: string;
-                    avatarUrl: string | null;
                     displayName: string;
+                    avatarUrl: string | null;
                 };
             } & {
                 id: string;
@@ -56,14 +60,14 @@ export declare class CallsService {
             })[];
         } & {
             id: string;
-            type: import(".prisma/client").$Enums.CallType;
             createdAt: Date;
-            chatId: string;
+            type: import(".prisma/client").$Enums.CallType;
             status: import(".prisma/client").$Enums.CallStatus;
             startedAt: Date | null;
             answeredAt: Date | null;
             endedAt: Date | null;
             endReason: string | null;
+            chatId: string;
             callerId: string;
         })[];
         nextCursor: string | null;
@@ -73,44 +77,48 @@ export declare class CallsService {
             members: ({
                 user: {
                     id: string;
-                    avatarUrl: string | null;
                     displayName: string;
+                    avatarUrl: string | null;
                 };
             } & {
                 id: string;
                 userId: string;
-                role: import(".prisma/client").$Enums.ChatMemberRole;
+                chatId: string;
                 joinedAt: Date;
                 leftAt: Date | null;
+                role: import(".prisma/client").$Enums.ChatMemberRole;
                 isMuted: boolean;
                 mutedUntil: Date | null;
                 isPinned: boolean;
+                isArchived: boolean;
                 wallpaperUrl: string | null;
                 lastReadMessageId: string | null;
-                chatId: string;
             })[];
         } & {
             id: string;
+            avatarUrl: string | null;
+            createdAt: Date;
+            updatedAt: Date;
             type: import(".prisma/client").$Enums.ChatType;
             title: string | null;
-            avatarUrl: string | null;
+            description: string | null;
             createdById: string;
+            communityId: string | null;
+            isAnnouncement: boolean;
             lastMessageId: string | null;
             lastMessageAt: Date | null;
             disappearingTimer: number | null;
-            createdAt: Date;
-            updatedAt: Date;
         };
         caller: {
             id: string;
-            avatarUrl: string | null;
             displayName: string;
+            avatarUrl: string | null;
         };
         participants: ({
             user: {
                 id: string;
-                avatarUrl: string | null;
                 displayName: string;
+                avatarUrl: string | null;
             };
         } & {
             id: string;
@@ -121,14 +129,14 @@ export declare class CallsService {
         })[];
     } & {
         id: string;
-        type: import(".prisma/client").$Enums.CallType;
         createdAt: Date;
-        chatId: string;
+        type: import(".prisma/client").$Enums.CallType;
         status: import(".prisma/client").$Enums.CallStatus;
         startedAt: Date | null;
         answeredAt: Date | null;
         endedAt: Date | null;
         endReason: string | null;
+        chatId: string;
         callerId: string;
     }>;
 }

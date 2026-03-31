@@ -12,14 +12,20 @@ export function LoginPage() {
   const navigate = useNavigate();
 
   const handleSubmit = async (e: FormEvent) => {
+    console.log('[Login] handleSubmit called!');
     e.preventDefault();
     setError('');
     setLoading(true);
+    console.log('[Login] Starting login for phone:', phone, 'password:', password ? '***' : 'empty');
     try {
       await login(phone, password);
+      console.log('[Login] Success, navigating to /');
       navigate('/');
     } catch (err: any) {
-      setError(err.message || 'Login failed');
+      console.error('[Login] Error:', err);
+      const errorMsg = err?.message || String(err) || 'Login failed';
+      console.error('[Login] Error message:', errorMsg);
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -64,7 +70,12 @@ export function LoginPage() {
                 required
               />
             </div>
-            <button type="submit" className="btn-primary" disabled={loading}>
+            <button 
+              type="submit" 
+              className="btn-primary" 
+              disabled={loading}
+              onClick={() => console.log('[Login] Button clicked!')}
+            >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>

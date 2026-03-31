@@ -10,18 +10,20 @@ exports.MessagesModule = void 0;
 const common_1 = require("@nestjs/common");
 const messages_controller_1 = require("./messages.controller");
 const messages_service_1 = require("./messages.service");
+const search_service_1 = require("./search.service");
 const queue_module_1 = require("../../common/queue/queue.module");
 const prisma_module_1 = require("../../prisma/prisma.module");
 const media_module_1 = require("../media/media.module");
+const e2ee_module_1 = require("../e2ee/e2ee.module");
 let MessagesModule = class MessagesModule {
 };
 exports.MessagesModule = MessagesModule;
 exports.MessagesModule = MessagesModule = __decorate([
     (0, common_1.Module)({
-        imports: [queue_module_1.QueueModule, prisma_module_1.PrismaModule, media_module_1.MediaModule],
+        imports: [queue_module_1.QueueModule, prisma_module_1.PrismaModule, media_module_1.MediaModule, e2ee_module_1.E2EEModule],
         controllers: [messages_controller_1.MessagesController],
-        providers: [messages_service_1.MessagesService],
-        exports: [messages_service_1.MessagesService],
+        providers: [messages_service_1.MessagesService, search_service_1.SearchService],
+        exports: [messages_service_1.MessagesService, search_service_1.SearchService],
     })
 ], MessagesModule);
 //# sourceMappingURL=messages.module.js.map

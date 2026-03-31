@@ -12,6 +12,8 @@ import { AuthModule } from '../auth/auth.module';
 import { RedisModule } from '../../redis/redis.module';
 import { MessagesModule } from '../messages/messages.module';
 
+import { makeGaugeProvider, makeCounterProvider } from '@willsoto/nestjs-prometheus';
+
 @Global()
 @Module({
   imports: [
@@ -21,7 +23,19 @@ import { MessagesModule } from '../messages/messages.module';
     RedisModule,
     forwardRef(() => MessagesModule)
   ],
-  providers: [ChatGateway, CallGateway, SocketSessionService],
+  providers: [
+    ChatGateway, 
+    CallGateway, 
+    SocketSessionService,
+    makeGaugeProvider({
+      name: 'websocket_active_connections',
+      help: 'Number of active websocket connections',
+    }),
+    makeCounterProvider({
+      name: 'websocket_messages_sent',
+      help: 'Total number of messages sent via websocket',
+    }),
+  ],
   exports: [SocketSessionService, ChatGateway, CallGateway],
 })
 export class GatewayModule {

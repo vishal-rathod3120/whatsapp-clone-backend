@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SeenDto = exports.DeliveredDto = exports.GetMessagesQueryDto = exports.EditMessageDto = exports.SendMessageDto = void 0;
+exports.ScheduleMessageDto = exports.SeenDto = exports.DeliveredDto = exports.GetMessagesQueryDto = exports.EditMessageDto = exports.SendMessageDto = void 0;
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 const enums_1 = require("../../../common/enums");
@@ -39,6 +39,15 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], SendMessageDto.prototype, "replyToMessageId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], SendMessageDto.prototype, "isEncrypted", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], SendMessageDto.prototype, "encryptionType", void 0);
 class EditMessageDto {
 }
 exports.EditMessageDto = EditMessageDto;
@@ -87,4 +96,29 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], SeenDto.prototype, "messageId", void 0);
+class ScheduleMessageDto {
+}
+exports.ScheduleMessageDto = ScheduleMessageDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], ScheduleMessageDto.prototype, "chatId", void 0);
+__decorate([
+    (0, class_validator_1.IsEnum)(enums_1.MessageType),
+    __metadata("design:type", String)
+], ScheduleMessageDto.prototype, "type", void 0);
+__decorate([
+    (0, class_transformer_1.Type)(() => Date),
+    __metadata("design:type", Date)
+], ScheduleMessageDto.prototype, "scheduledAt", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], ScheduleMessageDto.prototype, "textContent", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], ScheduleMessageDto.prototype, "attachmentId", void 0);
 //# sourceMappingURL=message.dto.js.map

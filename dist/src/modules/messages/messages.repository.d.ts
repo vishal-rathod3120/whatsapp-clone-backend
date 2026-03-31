@@ -14,13 +14,12 @@ export declare class MessagesRepository {
     }): Promise<{
         sender: {
             id: string;
-            avatarUrl: string | null;
             displayName: string;
+            avatarUrl: string | null;
         };
         attachment: {
             id: string;
             createdAt: Date;
-            uploaderId: string;
             storageKey: string;
             originalName: string | null;
             mimeType: string;
@@ -29,6 +28,8 @@ export declare class MessagesRepository {
             height: number | null;
             durationSeconds: number | null;
             thumbnailKey: string | null;
+            transcript: string | null;
+            uploaderId: string;
         } | null;
         receipts: {
             userId: string;
@@ -37,29 +38,33 @@ export declare class MessagesRepository {
         }[];
     } & {
         id: string;
-        type: import(".prisma/client").$Enums.MessageType;
         createdAt: Date;
+        type: import(".prisma/client").$Enums.MessageType;
+        status: import(".prisma/client").$Enums.MessageStatus;
         chatId: string;
-        senderId: string;
+        isPinned: boolean;
         clientTempId: string | null;
         textContent: string | null;
-        replyToMessageId: string | null;
-        attachmentId: string | null;
-        status: import(".prisma/client").$Enums.MessageStatus;
         isDeleted: boolean;
+        pinnedAt: Date | null;
+        pinnedBy: string | null;
+        isEncrypted: boolean;
+        encryptionType: string | null;
         editedAt: Date | null;
         expiresAt: Date | null;
+        senderId: string;
+        replyToMessageId: string | null;
+        attachmentId: string | null;
     }>;
     findById(messageId: string): Promise<({
         sender: {
             id: string;
-            avatarUrl: string | null;
             displayName: string;
+            avatarUrl: string | null;
         };
         attachment: {
             id: string;
             createdAt: Date;
-            uploaderId: string;
             storageKey: string;
             originalName: string | null;
             mimeType: string;
@@ -68,6 +73,8 @@ export declare class MessagesRepository {
             height: number | null;
             durationSeconds: number | null;
             thumbnailKey: string | null;
+            transcript: string | null;
+            uploaderId: string;
         } | null;
         receipts: {
             userId: string;
@@ -76,29 +83,33 @@ export declare class MessagesRepository {
         }[];
     } & {
         id: string;
-        type: import(".prisma/client").$Enums.MessageType;
         createdAt: Date;
+        type: import(".prisma/client").$Enums.MessageType;
+        status: import(".prisma/client").$Enums.MessageStatus;
         chatId: string;
-        senderId: string;
+        isPinned: boolean;
         clientTempId: string | null;
         textContent: string | null;
-        replyToMessageId: string | null;
-        attachmentId: string | null;
-        status: import(".prisma/client").$Enums.MessageStatus;
         isDeleted: boolean;
+        pinnedAt: Date | null;
+        pinnedBy: string | null;
+        isEncrypted: boolean;
+        encryptionType: string | null;
         editedAt: Date | null;
         expiresAt: Date | null;
+        senderId: string;
+        replyToMessageId: string | null;
+        attachmentId: string | null;
     }) | null>;
     findByChatId(chatId: string, userId: string, limit: number, cursor?: string): Promise<({
         sender: {
             id: string;
-            avatarUrl: string | null;
             displayName: string;
+            avatarUrl: string | null;
         };
         attachment: {
             id: string;
             createdAt: Date;
-            uploaderId: string;
             storageKey: string;
             originalName: string | null;
             mimeType: string;
@@ -107,6 +118,8 @@ export declare class MessagesRepository {
             height: number | null;
             durationSeconds: number | null;
             thumbnailKey: string | null;
+            transcript: string | null;
+            uploaderId: string;
         } | null;
         receipts: {
             userId: string;
@@ -115,18 +128,23 @@ export declare class MessagesRepository {
         }[];
     } & {
         id: string;
-        type: import(".prisma/client").$Enums.MessageType;
         createdAt: Date;
+        type: import(".prisma/client").$Enums.MessageType;
+        status: import(".prisma/client").$Enums.MessageStatus;
         chatId: string;
-        senderId: string;
+        isPinned: boolean;
         clientTempId: string | null;
         textContent: string | null;
-        replyToMessageId: string | null;
-        attachmentId: string | null;
-        status: import(".prisma/client").$Enums.MessageStatus;
         isDeleted: boolean;
+        pinnedAt: Date | null;
+        pinnedBy: string | null;
+        isEncrypted: boolean;
+        encryptionType: string | null;
         editedAt: Date | null;
         expiresAt: Date | null;
+        senderId: string;
+        replyToMessageId: string | null;
+        attachmentId: string | null;
     })[]>;
     createReceipts(messageId: string, userIds: string[]): Promise<import(".prisma/client").Prisma.BatchPayload>;
     markAsDelivered(messageId: string, userId: string): Promise<import(".prisma/client").Prisma.BatchPayload>;
