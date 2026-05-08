@@ -379,4 +379,21 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       socket.emit('chat:error', { message: 'Failed to react' });
     }
   }
+  @SubscribeMessage('chat:key-request')
+  async handleKeyRequest(socket: Socket, payload: { chatId: string; senderId: string }) {
+    try {
+      const userId = this.socketSessionService.getUserIdBySocket(socket.id);
+      if (!userId) return;
+
+      console.log(`Key request from ${userId} for ${payload.senderId} in chat ${payload.chatId}`);
+
+      // Broadcast to the target sender's room
+      this.server.to(`user:${payload.senderId}`).emit('chat:key-request', {
+        chatId: payload.chatId,
+        requesterId: userId,
+      });
+    } catch (error) {
+      console.error('Key request error:', error);
+    }
+  }
 }

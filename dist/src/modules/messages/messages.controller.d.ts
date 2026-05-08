@@ -10,14 +10,10 @@ export declare class MessagesController {
     getLinkPreview(url: string): Promise<any>;
     getMessages(chatId: string, query: GetMessagesQueryDto, user: JwtPayload): Promise<{
         items: ({
-            sender: {
-                id: string;
-                displayName: string;
-                avatarUrl: string | null;
-            };
             attachment: {
                 id: string;
                 createdAt: Date;
+                uploaderId: string;
                 storageKey: string;
                 originalName: string | null;
                 mimeType: string;
@@ -27,8 +23,12 @@ export declare class MessagesController {
                 durationSeconds: number | null;
                 thumbnailKey: string | null;
                 transcript: string | null;
-                uploaderId: string;
             } | null;
+            sender: {
+                id: string;
+                displayName: string;
+                avatarUrl: string | null;
+            };
             replyToMessage: {
                 id: string;
                 type: import(".prisma/client").$Enums.MessageType;
@@ -40,25 +40,25 @@ export declare class MessagesController {
             } | null;
             receipts: {
                 userId: string;
-                seenAt: Date | null;
                 deliveredAt: Date | null;
+                seenAt: Date | null;
             }[];
         } & {
-            id: string;
-            createdAt: Date;
-            type: import(".prisma/client").$Enums.MessageType;
             status: import(".prisma/client").$Enums.MessageStatus;
-            chatId: string;
-            isPinned: boolean;
+            id: string;
             clientTempId: string | null;
+            type: import(".prisma/client").$Enums.MessageType;
             textContent: string | null;
             isDeleted: boolean;
+            isPinned: boolean;
             pinnedAt: Date | null;
             pinnedBy: string | null;
             isEncrypted: boolean;
             encryptionType: string | null;
+            createdAt: Date;
             editedAt: Date | null;
             expiresAt: Date | null;
+            chatId: string;
             senderId: string;
             replyToMessageId: string | null;
             attachmentId: string | null;
@@ -66,21 +66,21 @@ export declare class MessagesController {
         nextCursor: string | null;
     }>;
     sendMessage(chatId: string, dto: SendMessageDto, user: JwtPayload): Promise<{
-        id: string;
-        createdAt: Date;
-        type: import(".prisma/client").$Enums.MessageType;
         status: import(".prisma/client").$Enums.MessageStatus;
-        chatId: string;
-        isPinned: boolean;
+        id: string;
         clientTempId: string | null;
+        type: import(".prisma/client").$Enums.MessageType;
         textContent: string | null;
         isDeleted: boolean;
+        isPinned: boolean;
         pinnedAt: Date | null;
         pinnedBy: string | null;
         isEncrypted: boolean;
         encryptionType: string | null;
+        createdAt: Date;
         editedAt: Date | null;
         expiresAt: Date | null;
+        chatId: string;
         senderId: string;
         replyToMessageId: string | null;
         attachmentId: string | null;
@@ -90,21 +90,21 @@ export declare class MessagesController {
         type: string;
     }>;
     editMessage(chatId: string, messageId: string, dto: EditMessageDto, user: JwtPayload): Promise<{
-        id: string;
-        createdAt: Date;
-        type: import(".prisma/client").$Enums.MessageType;
         status: import(".prisma/client").$Enums.MessageStatus;
-        chatId: string;
-        isPinned: boolean;
+        id: string;
         clientTempId: string | null;
+        type: import(".prisma/client").$Enums.MessageType;
         textContent: string | null;
         isDeleted: boolean;
+        isPinned: boolean;
         pinnedAt: Date | null;
         pinnedBy: string | null;
         isEncrypted: boolean;
         encryptionType: string | null;
+        createdAt: Date;
         editedAt: Date | null;
         expiresAt: Date | null;
+        chatId: string;
         senderId: string;
         replyToMessageId: string | null;
         attachmentId: string | null;
@@ -123,8 +123,8 @@ export declare class MessagesController {
         starredAt: Date;
         chat: {
             id: string;
-            avatarUrl: string | null;
             type: import(".prisma/client").$Enums.ChatType;
+            avatarUrl: string | null;
             title: string | null;
             members: ({
                 user: {
@@ -133,27 +133,23 @@ export declare class MessagesController {
                 };
             } & {
                 id: string;
-                userId: string;
+                isPinned: boolean;
                 chatId: string;
+                userId: string;
+                role: import(".prisma/client").$Enums.ChatMemberRole;
                 joinedAt: Date;
                 leftAt: Date | null;
-                role: import(".prisma/client").$Enums.ChatMemberRole;
                 isMuted: boolean;
                 mutedUntil: Date | null;
-                isPinned: boolean;
                 isArchived: boolean;
                 wallpaperUrl: string | null;
                 lastReadMessageId: string | null;
             })[];
         };
-        sender: {
-            id: string;
-            displayName: string;
-            avatarUrl: string | null;
-        };
         attachment: {
             id: string;
             createdAt: Date;
+            uploaderId: string;
             storageKey: string;
             originalName: string | null;
             mimeType: string;
@@ -163,20 +159,24 @@ export declare class MessagesController {
             durationSeconds: number | null;
             thumbnailKey: string | null;
             transcript: string | null;
-            uploaderId: string;
         } | null;
-        id: string;
-        createdAt: Date;
-        type: import(".prisma/client").$Enums.MessageType;
+        sender: {
+            id: string;
+            displayName: string;
+            avatarUrl: string | null;
+        };
         status: import(".prisma/client").$Enums.MessageStatus;
-        isPinned: boolean;
+        id: string;
         clientTempId: string | null;
+        type: import(".prisma/client").$Enums.MessageType;
         textContent: string | null;
         isDeleted: boolean;
+        isPinned: boolean;
         pinnedAt: Date | null;
         pinnedBy: string | null;
         isEncrypted: boolean;
         encryptionType: string | null;
+        createdAt: Date;
         editedAt: Date | null;
         expiresAt: Date | null;
         senderId: string;
@@ -194,14 +194,10 @@ export declare class MessagesController {
         success: boolean;
     }>;
     getPinnedMessages(chatId: string, user: JwtPayload): Promise<({
-        sender: {
-            id: string;
-            displayName: string;
-            avatarUrl: string | null;
-        };
         attachment: {
             id: string;
             createdAt: Date;
+            uploaderId: string;
             storageKey: string;
             originalName: string | null;
             mimeType: string;
@@ -211,43 +207,48 @@ export declare class MessagesController {
             durationSeconds: number | null;
             thumbnailKey: string | null;
             transcript: string | null;
-            uploaderId: string;
         } | null;
+        sender: {
+            id: string;
+            displayName: string;
+            avatarUrl: string | null;
+        };
     } & {
-        id: string;
-        createdAt: Date;
-        type: import(".prisma/client").$Enums.MessageType;
         status: import(".prisma/client").$Enums.MessageStatus;
-        chatId: string;
-        isPinned: boolean;
+        id: string;
         clientTempId: string | null;
+        type: import(".prisma/client").$Enums.MessageType;
         textContent: string | null;
         isDeleted: boolean;
+        isPinned: boolean;
         pinnedAt: Date | null;
         pinnedBy: string | null;
         isEncrypted: boolean;
         encryptionType: string | null;
+        createdAt: Date;
         editedAt: Date | null;
         expiresAt: Date | null;
+        chatId: string;
         senderId: string;
         replyToMessageId: string | null;
         attachmentId: string | null;
     })[]>;
     scheduleMessage(chatId: string, dto: ScheduleMessageDto, user: JwtPayload): Promise<{
-        id: string;
-        createdAt: Date;
-        type: import(".prisma/client").$Enums.MessageType;
-        userId: string;
         status: import(".prisma/client").$Enums.ScheduledMessageStatus;
-        chatId: string;
+        id: string;
+        type: import(".prisma/client").$Enums.MessageType;
         textContent: string | null;
+        createdAt: Date;
+        chatId: string;
         attachmentId: string | null;
+        userId: string;
         scheduledAt: Date;
     }>;
     getScheduledMessages(user: JwtPayload): Promise<({
         attachment: {
             id: string;
             createdAt: Date;
+            uploaderId: string;
             storageKey: string;
             originalName: string | null;
             mimeType: string;
@@ -257,17 +258,16 @@ export declare class MessagesController {
             durationSeconds: number | null;
             thumbnailKey: string | null;
             transcript: string | null;
-            uploaderId: string;
         } | null;
     } & {
-        id: string;
-        createdAt: Date;
-        type: import(".prisma/client").$Enums.MessageType;
-        userId: string;
         status: import(".prisma/client").$Enums.ScheduledMessageStatus;
-        chatId: string;
+        id: string;
+        type: import(".prisma/client").$Enums.MessageType;
         textContent: string | null;
+        createdAt: Date;
+        chatId: string;
         attachmentId: string | null;
+        userId: string;
         scheduledAt: Date;
     })[]>;
     cancelScheduledMessage(messageId: string, user: JwtPayload): Promise<{

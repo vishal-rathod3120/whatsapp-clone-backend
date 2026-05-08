@@ -77,7 +77,8 @@ export class SignalService {
   async encryptGroupMessage(
     groupId: string, 
     groupMembersIds: string[], 
-    plaintext: string
+    plaintext: string,
+    forceDistribution: boolean = false
   ): Promise<{ ciphertext: GroupEncryptedMessage, distributionRecords: Record<string, EncryptedMessage> }> {
     if (!this.userId) throw new Error('SignalService: Not initialized');
     
@@ -100,28 +101,9 @@ export class SignalService {
       };
     }
 
-    const distributionRecords: Record<string, EncryptedMessage> = {};
-    if (isNewKey) {
-      const distributionPayload = senderKeyService.encodeSenderKeyDistribution(senderKeyState);
-      const payloadString = JSON.stringify({ 
-        type: 'SENDER_KEY_DISTRIBUTION', 
-        groupId, 
-        payload: distributionPayload 
-      });
-      
-      for (const memberId of groupMembersIds) {
-        if (memberId === this.userId) continue;
-        try {
-           const encryptedPairwise = await this.encryptMessage(memberId, payloadString);
-           distributionRecords[memberId] = encryptedPairwise;
-        } catch (e) {
-           console.warn(`Could not distribute sender key to ${memberId}:`, e);
-        }
-      }
-    }
-
     const { messageKey, newState } = await senderKeyService.ratchetSenderKey(senderKeyState);
 
+    // Save the ratcheted state
     await signalStore.saveSenderKey({
       id: `${groupId}:${this.userId}`,
       chainKey: crypto.encodeBase64(newState.chainKey),
@@ -152,6 +134,27 @@ export class SignalService {
     const finalBuffer = new Uint8Array(64 + combinedCt.length);
     finalBuffer.set(signature, 0);
     finalBuffer.set(combinedCt, 64);
+
+    const distributionRecords: Record<string, EncryptedMessage> = {};
+
+    if (isNewKey || forceDistribution) {
+      const distributionPayload = senderKeyService.encodeSenderKeyDistribution(senderKeyState);
+      const payloadString = JSON.stringify({ 
+        type: 'SENDER_KEY_DISTRIBUTION', 
+        groupId, 
+        payload: distributionPayload 
+      });
+
+      for (const memberId of groupMembersIds) {
+        if (memberId === this.userId) continue;
+        try {
+          const encryptedPairwise = await this.encryptMessageToAllDevices(memberId, payloadString);
+          distributionRecords[memberId] = encryptedPairwise;
+        } catch (e) {
+          console.warn(`Could not distribute sender key to ${memberId}:`, e);
+        }
+      }
+    }
     
     return {
       ciphertext: {
@@ -177,7 +180,9 @@ export class SignalService {
 
   async decryptGroupMessage(senderId: string, groupId: string, encryptedMsg: GroupEncryptedMessage): Promise<string> {
     const senderKeyRecord = await signalStore.getSenderKey(groupId, senderId);
-    if (!senderKeyRecord) throw new Error(`Decryption failed: No sender key found for ${groupId}:${senderId}.`);
+    if (!senderKeyRecord) {
+      throw new Error(`Missing sender key for group ${groupId} from user ${senderId}. They may need to send a distribution record first.`);
+    }
 
     const finalBuffer = crypto.decodeBase64(encryptedMsg.ciphertext);
     const signature = finalBuffer.slice(0, 64);

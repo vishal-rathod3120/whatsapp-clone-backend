@@ -314,6 +314,21 @@ let ChatGateway = class ChatGateway {
             socket.emit('chat:error', { message: 'Failed to react' });
         }
     }
+    async handleKeyRequest(socket, payload) {
+        try {
+            const userId = this.socketSessionService.getUserIdBySocket(socket.id);
+            if (!userId)
+                return;
+            console.log(`Key request from ${userId} for ${payload.senderId} in chat ${payload.chatId}`);
+            this.server.to(`user:${payload.senderId}`).emit('chat:key-request', {
+                chatId: payload.chatId,
+                requesterId: userId,
+            });
+        }
+        catch (error) {
+            console.error('Key request error:', error);
+        }
+    }
 };
 exports.ChatGateway = ChatGateway;
 __decorate([
@@ -362,6 +377,12 @@ __decorate([
     __metadata("design:paramtypes", [socket_io_1.Socket, Object]),
     __metadata("design:returntype", Promise)
 ], ChatGateway.prototype, "handleReaction", null);
+__decorate([
+    (0, websockets_1.SubscribeMessage)('chat:key-request'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [socket_io_1.Socket, Object]),
+    __metadata("design:returntype", Promise)
+], ChatGateway.prototype, "handleKeyRequest", null);
 exports.ChatGateway = ChatGateway = __decorate([
     (0, websockets_1.WebSocketGateway)({
         cors: { origin: '*' },

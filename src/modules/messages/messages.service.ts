@@ -20,7 +20,7 @@ export class MessagesService {
     private e2eeCrypto: E2EECryptoService,
     private searchService: SearchService,
     private metricsService: MetricsService,
-  ) {}
+  ) { }
 
   private get chatGateway(): any {
     try {
@@ -54,7 +54,7 @@ export class MessagesService {
             ]
           }
         });
-        
+
         if (block) {
           throw new ForbiddenException('Cannot send messages to this contact');
         }
@@ -613,7 +613,7 @@ export class MessagesService {
                 avatarUrl: true,
                 members: {
                   include: {
-                    user: { select: { displayName: true, avatarUrl: true }}
+                    user: { select: { displayName: true, avatarUrl: true } }
                   }
                 }
               }

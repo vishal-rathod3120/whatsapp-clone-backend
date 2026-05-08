@@ -141,8 +141,7 @@ let MessagesService = class MessagesService {
             else {
                 if (this.chatGateway?.server) {
                     recipientIds.forEach((userId) => {
-                        this.chatGateway.server.to(`user:${userId}`).emit('message:receive', {
-                            chatId,
+                        this.chatGateway.server.to(`user:${userId}`).emit('chat:new', {
                             message,
                         });
                     });

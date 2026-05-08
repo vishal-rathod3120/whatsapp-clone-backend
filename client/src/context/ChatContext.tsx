@@ -283,6 +283,81 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(chatReducer, initialState);
   const { isAuthenticated, user } = useAuth();
 
+  const decryptMessagePayload = useCallback(async (msg: Message): Promise<Message> => {
+    let finalMessage = { ...msg };
+    let isEncryptedFallback = false;
+
+    if (finalMessage.textContent && finalMessage.senderId !== user?.id) {
+       try {
+           const parsed = JSON.parse(finalMessage.textContent);
+           
+           // Case 1: Direct single-device legacy
+           if (parsed.header && parsed.ciphertext) {
+             isEncryptedFallback = true;
+             const decrypted = await signalService.decryptMessage(finalMessage.senderId, parsed as EncryptedMessage);
+             finalMessage.textContent = decrypted;
+             finalMessage.isEncrypted = true;
+           } 
+           // Case 2: Direct multi-device map
+           else if (parsed && typeof parsed === 'object' && !parsed.ciphertext) {
+             const identity = await signalStore.getIdentity();
+             const myDeviceId = identity?.deviceId;
+             if (myDeviceId && parsed[myDeviceId]?.header && parsed[myDeviceId]?.ciphertext) {
+               isEncryptedFallback = true;
+               const decrypted = await signalService.decryptMessage(finalMessage.senderId, parsed[myDeviceId] as EncryptedMessage);
+               finalMessage.textContent = decrypted;
+               finalMessage.isEncrypted = true;
+             }
+           } 
+           // Case 3: Group message
+           else if (parsed.ciphertext && parsed.ciphertext.header && parsed.ciphertext.header.groupId) {
+               isEncryptedFallback = true;
+               // 1. Process distribution keys
+               if (parsed.distributionRecords && user && parsed.distributionRecords[user.id]) {
+                   try {
+                     const keyPayloadStr = await signalService.decryptMessage(finalMessage.senderId, parsed.distributionRecords[user.id]);
+                     const keyPayload = JSON.parse(keyPayloadStr);
+                     if (keyPayload.type === 'SENDER_KEY_DISTRIBUTION') {
+                         await signalService.processSenderKeyDistribution(finalMessage.senderId, parsed.ciphertext.header.groupId, keyPayload.payload);
+                     }
+                   } catch (e) {
+                     console.warn('Failed to process sender key distribution:', e);
+                   }
+               }
+               // 2. Decrypt actual group message
+               try {
+                 const decrypted = await signalService.decryptGroupMessage(finalMessage.senderId, parsed.ciphertext.header.groupId, parsed.ciphertext);
+                 finalMessage.textContent = decrypted;
+                 finalMessage.isEncrypted = true;
+               } catch (e: any) {
+                 if (e.message.includes('Missing sender key')) {
+                   // Auto-request missing key
+                   socketService.requestKey(parsed.ciphertext.header.groupId, finalMessage.senderId);
+                 }
+                 throw e;
+               }
+           }
+           
+           // Post-processing for embedded media keys hidden in decrypted text
+           if (finalMessage.isEncrypted && finalMessage.textContent) {
+             try {
+               const innerData = JSON.parse(finalMessage.textContent);
+               if (innerData.mediaKey && innerData.mediaIv) {
+                  finalMessage.mediaKey = innerData.mediaKey;
+                  finalMessage.mediaIv = innerData.mediaIv;
+                  finalMessage.textContent = innerData.text || ''; 
+               }
+             } catch (e) { /* normal text content */ }
+           }
+       } catch (e) {
+           if (isEncryptedFallback) {
+               finalMessage.textContent = `🔒 [Message decryption failed: ${e instanceof Error ? e.message : 'Unknown'}]`;
+           }
+       }
+    }
+    return finalMessage;
+  }, [user]);
+
   const loadChats = useCallback(async () => {
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
@@ -317,7 +392,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const loadMessages = useCallback(async (chatId: string) => {
     try {
       const data = await api.getMessages(chatId);
-      const messages = (data.items || data).map((m: any) => {
+      const messagesWithStatus = (data.items || data).map((m: any) => {
         let status = m.status;
         if (m.receipts && m.receipts.length > 0) {
           if (m.receipts.some((r: any) => r.seenAt)) status = 'read';
@@ -325,7 +400,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         }
         return { ...m, status };
       });
-      dispatch({ type: 'SET_MESSAGES', payload: { chatId, messages: messages.reverse() } });
+
+      // Decrypt all historical messages
+      const decryptedMessages = await Promise.all(
+        messagesWithStatus.reverse().map((m: any) => decryptMessagePayload(m))
+      );
+      
+      dispatch({ type: 'SET_MESSAGES', payload: { chatId, messages: decryptedMessages } });
     } catch (err) {
       console.error('Failed to load messages:', err);
     }
@@ -588,74 +669,45 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     if (!isAuthenticated) return;
 
     const onNewMessage = async (data: { message: Message }) => {
-      let finalMessage = { ...data.message };
-      let isEncryptedFallback = false;
-
-      if (finalMessage.textContent && finalMessage.senderId !== user?.id) {
-         try {
-             // Try parsing JSON to see if it's an encrypted wrapper
-             const parsed = JSON.parse(finalMessage.textContent);
-             if (parsed.header && parsed.ciphertext) { // Direct message (single device legacy)
-               isEncryptedFallback = true;
-               const decrypted = await signalService.decryptMessage(finalMessage.senderId, parsed as EncryptedMessage);
-               finalMessage.textContent = decrypted;
-               finalMessage.isEncrypted = true;
-             } else if (parsed && typeof parsed === 'object') {
-               // Direct message (multi-device map): { [deviceId]: EncryptedMessage }
-               const identity = await signalStore.getIdentity();
-               const myDeviceId = identity?.deviceId;
-               if (myDeviceId && parsed[myDeviceId]?.header && parsed[myDeviceId]?.ciphertext) {
-                 isEncryptedFallback = true;
-                 const decrypted = await signalService.decryptMessage(finalMessage.senderId, parsed[myDeviceId] as EncryptedMessage);
-                 finalMessage.textContent = decrypted;
-                 finalMessage.isEncrypted = true;
-               }
-             } else if (parsed.ciphertext && parsed.ciphertext.header && parsed.ciphertext.header.groupId) { // Group message
-                 isEncryptedFallback = true;
-                 // 1. Check if there's a Sender Key distribution packet for us
-                 if (parsed.distributionRecords && user && parsed.distributionRecords[user.id]) {
-                     const keyPayloadStr = await signalService.decryptMessage(finalMessage.senderId, parsed.distributionRecords[user.id]);
-                     const keyPayload = JSON.parse(keyPayloadStr);
-                     if (keyPayload.type === 'SENDER_KEY_DISTRIBUTION') {
-                         await signalService.processSenderKeyDistribution(finalMessage.senderId, parsed.ciphertext.header.groupId, keyPayload.payload);
-                     }
-                 }
-                 // 2. Decrypt actual group message
-                 const decrypted = await signalService.decryptGroupMessage(finalMessage.senderId, parsed.ciphertext.header.groupId, parsed.ciphertext);
-                 finalMessage.textContent = decrypted;
-                 finalMessage.isEncrypted = true;
-             }
-             
-             // Extract embedded media payloads magically handled as JSON text!
-             if (finalMessage.isEncrypted) {
-               try {
-                 const innerData = JSON.parse(finalMessage.textContent);
-                 if (innerData.mediaKey && innerData.mediaIv) {
-                    finalMessage.mediaKey = innerData.mediaKey;
-                    finalMessage.mediaIv = innerData.mediaIv;
-                    // Reset textual render fallback if there wasn't an accompanying caption
-                    finalMessage.textContent = innerData.text || ''; 
-                 }
-               } catch (e) { /* ignore text */ }
-             }
-         } catch (e) {
-             // Parsing throws if plaintext, OR decryptMessage throws if bad key
-             if (isEncryptedFallback) {
-                 finalMessage.textContent = `🔒 [Message decryption failed: ${e instanceof Error ? e.message : 'Unknown'}]`;
-             }
-         }
-      }
-
+      if (data.message.type === 'KEY_DISTRIBUTION') return; // Silent internal message
+      
+      const finalMessage = await decryptMessagePayload(data.message);
       dispatch({ type: 'ADD_MESSAGE', payload: finalMessage });
       socketService.markDelivered(finalMessage.id);
-      // Play sound for messages from other users (not currently viewed chat)
       if (finalMessage.senderId !== user?.id) {
         playMessageSound();
       }
     };
 
-    const onSentAck = (data: { clientTempId: string; message: Message }) => {
-      dispatch({ type: 'SENT_ACK', payload: data });
+    const onKeyRequest = async (data: { chatId: string; requesterId: string }) => {
+      // Find the chat and re-distribute keys if we are in it
+      const currentChats = state.chats; 
+      const chat = currentChats.find(c => c.id === data.chatId);
+      
+      if (chat && chat.type === 'GROUP' && user) {
+        try {
+          const memberIds = chat.members.map(m => m.userId);
+          const { ciphertext, distributionRecords } = await signalService.encryptGroupMessage(data.chatId, memberIds, '', true);
+          socketService.sendMessage(data.chatId, { 
+            clientTempId: generateClientId(), 
+            type: 'KEY_DISTRIBUTION', 
+            textContent: JSON.stringify({ ciphertext, distributionRecords }) 
+          });
+        } catch (e) {
+          console.error('Failed to handle key request:', e);
+        }
+      }
+    };
+
+    const onSentAck = async (data: { clientTempId: string; message: Message }) => {
+      // Decrypt server-provided message (in case it holds server-side encrypted contents)
+      const message = await decryptMessagePayload(data.message);
+      // However, for the sender, we often prefer the original plaintext if possible.
+      // But if it's the sender, decryptMessagePayload will skip it (due to senderId === user.id).
+      // So we must temporarily bypass that check if we want to verify the server stored it right,
+      // or just trust the server is sending back the same thing.
+      
+      dispatch({ type: 'SENT_ACK', payload: { ...data, message } });
       playSentSound();
     };
 
@@ -704,6 +756,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     };
 
     socketService.on('chat:new', onNewMessage);
+    socketService.on('chat:key-request', onKeyRequest);
     socketService.on('chat:sent-ack', onSentAck);
     socketService.on('chat:typing:update', onTyping);
     socketService.on('message:deleted', onMessageDeleted);
@@ -719,6 +772,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     return () => {
       socketService.off('chat:new', onNewMessage);
+      socketService.off('chat:key-request', onKeyRequest);
       socketService.off('chat:sent-ack', onSentAck);
       socketService.off('chat:typing:update', onTyping);
       socketService.off('message:deleted', onMessageDeleted);
